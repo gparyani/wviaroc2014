@@ -2,7 +2,7 @@
 #labels Featured,Phase-Requirements
 = Introduction =
 
-The following is quoted from http://iaroc.org/rules/. Note that there are images on the actual page that are currently unavailable, so I've removed all references to them here (but I've italicized them here in case they come back).
+The following is quoted from http://iaroc.org/rules/.
 
 = Details =
 
@@ -10,13 +10,15 @@ The following is quoted from http://iaroc.org/rules/. Note that there are images
 It is the future.  The first manned mission to Mars is getting underway, and you have work to do.  You and your team of NASA roboticists have been given the job of designing, building, programming, and running a robot to perform 3 vital missions for your Martian colony.
 
 ===Recover Data===
-A rover was sent ahead to scout the entire area and gather data for the colonists.  However, it went missing before it could send its data back to Earth. _The rover’s last known position is marked “2″ on the map._ Your robot’s first mission is to travel through the Valles Marineris _from “1″_ to the rover’s last known position as quickly as possible and attempt to recover the valuable data. To make sure your robot doesn’t get stuck, you should probably try to stay in the middle of the valley and away from the rough terrain at the edges.
+A rover was sent ahead to scout the entire area and gather data for the colonists.  However, it went missing before it could send its data back to Earth. The rover’s last known position is marked “2″ on the map. Your robot’s first mission is to travel through the Valles Marineris from “1″ to the rover’s last known position as quickly as possible and attempt to recover the valuable data. To make sure your robot doesn’t get stuck, you should probably try to stay in the middle of the valley and away from the rough terrain at the edges.
 
 ===Survey Route===
-Your colony’s site is on a plateau above the Valles Marineris_, marked by “S” on the map_. But the resources your colony needs are located in the plain beyond plateau_, marked “F” on the map_. And the plateau is covered in dangerous fissures and cracks. Your robot needs to survey this plateau square by square and discover the shortest safe route across from your colony to the mineral exploration area beyond. This is your robot’s most important mission.
+Your colony’s site is on a plateau above the Valles Marineris, marked by “S” on the map. But the resources your colony needs are located in the plain beyond plateau, marked “F” on the map. And the plateau is covered in dangerous fissures and cracks. Your robot needs to survey this plateau square by square and discover the shortest safe route across from your colony to the mineral exploration area beyond. This is your robot’s most important mission.
 
 ===Claim Mineral Resources===
-There are valuable mineral resources located in the craters _marked “A”, “B”, and “C”_.  However, there are other teams attempting to colonize Mars.  To make things fair for everybody, an international agreement has been reached that will allow each team to use their own autonomous robot to attempt to claim one of the craters for their team.  All of the robots will start somewhere on `[a]` _the_ zig-zag line.  None of the robots are allowed to have maps of the terrain _inside the blue lines_, so each robot will have to figure it out as it goes.  Your robot needs to be the first to enter one of the craters and claim it for your colony.
+There are valuable mineral resources located in the craters marked “A”, “B”, and “C”.  However, there are other teams attempting to colonize Mars.  To make things fair for everybody, an international agreement has been reached that will allow each team to use their own autonomous robot to attempt to claim one of the craters for their team.  All of the robots will start somewhere on the zig-zag line.  None of the robots are allowed to have maps of the terrain inside the blue lines, so each robot will have to figure it out as it goes.  Your robot needs to be the first to enter one of the craters and claim it for your colony.
+
+http://iaroc.org/wp-content/uploads/2014/03/rules-01.jpg
 
 Your robot isn’t the only one with missions to perform; your team also has 2 missions it needs to perform.
 
@@ -25,6 +27,8 @@ Your team must brief the Senior Mission Commanders, who are staying on Earth, ab
 
 ===Public Relations===
 You are famous astronauts on the most important mission in the history of mankind, colonizing Mars!  The public is intensely curious about the mission, about your robot, and about your team.  As part of your mission duties, your team will spend some time talking to the people back home, answering questions and inspiring the next generation of astronauts!
+
+http://iaroc.org/wp-content/uploads/2014/03/rules-02.jpg
 
 ==Scoring==
 Winners will be determined based upon the points earned for each mission. Each team will only get one score per mission.
