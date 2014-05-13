@@ -18,7 +18,8 @@ Your colony’s site is on a plateau above the Valles Marineris, marked by “S�
 ===Claim Mineral Resources===
 There are valuable mineral resources located in the craters marked “A”, “B”, and “C”.  However, there are other teams attempting to colonize Mars.  To make things fair for everybody, an international agreement has been reached that will allow each team to use their own autonomous robot to attempt to claim one of the craters for their team.  All of the robots will start somewhere on the zig-zag line.  None of the robots are allowed to have maps of the terrain inside the blue lines, so each robot will have to figure it out as it goes.  Your robot needs to be the first to enter one of the craters and claim it for your colony.
 
-http://iaroc.org/wp-content/uploads/2014/03/rules-01.jpg
+<a href="http://iaroc.org/wp-content/uploads/2014/03/rules-01.jpg"> http://iaroc.org/wp-content/uploads/2014/03/rules-01.jpg</a>
+_Click for full size_
 
 Your robot isn’t the only one with missions to perform; your team also has 2 missions it needs to perform.
 
@@ -28,7 +29,8 @@ Your team must brief the Senior Mission Commanders, who are staying on Earth, ab
 ===Public Relations===
 You are famous astronauts on the most important mission in the history of mankind, colonizing Mars!  The public is intensely curious about the mission, about your robot, and about your team.  As part of your mission duties, your team will spend some time talking to the people back home, answering questions and inspiring the next generation of astronauts!
 
-http://iaroc.org/wp-content/uploads/2014/03/rules-02.jpg
+<a href="http://iaroc.org/wp-content/uploads/2014/03/rules-02.jpg">http://iaroc.org/wp-content/uploads/2014/03/rules-02.jpg</a>
+_Click for full size_
 
 ==Scoring==
 Winners will be determined based upon the points earned for each mission. Each team will only get one score per mission.
