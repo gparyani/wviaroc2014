@@ -1,6 +1,8 @@
 #summary Detailed rules of each mission.
 #labels Phase-Requirements
 
+<wiki:toc max_depth="2" />
+
 = Introduction =
 
 The following content is quoted from http://iaroc.org/rules/detailed-rules/.
