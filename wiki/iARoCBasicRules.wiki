@@ -36,4 +36,6 @@ Winners will be determined based upon the points earned for each mission. Each t
 ||Technical Briefing||2000||1500||1000||See detailed rules||500||15 + 5 minutes||
 ||Public Relations||N/A||N/A||N/A||N/A||250||30 minutes||
 
+For full detailed rules, please see [iARoCDetailedMissionRules].
+
 All rules are subject to change. I will try and check for any changes in a timely manner and document them here. If you have any questions or would like to report changes, please post a comment. Alternatively, feel free to edit this page if you see any changes.
