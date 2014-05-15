@@ -1,5 +1,5 @@
 #summary How to install the IDE and the utilities to load programs on the EV3 and commit source code to this space on a Windows system
-#labels Phase-Deploy
+#labels Phase-Deploy,Featured
 
 = Introduction =
 The procedure for getting everything set up is simple:
