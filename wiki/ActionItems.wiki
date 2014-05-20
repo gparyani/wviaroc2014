@@ -1,6 +1,10 @@
 #summary Team Action Items
 #labels Phase-Requirements,Featured
 
+5/20/14
+  * 
+
+5/18/14
   * Find PVC material that we already have for building a small maze
   * Find a place to practice
   * Figure out if every time we need to clean up
