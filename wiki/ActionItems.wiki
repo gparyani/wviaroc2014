@@ -1,8 +1,10 @@
 #summary Team Action Items
 #labels Phase-Requirements,Featured
 
-5/20/14
-  * 
+5/24/14
+  * Write code to reset gyro sensor
+  * Load code we wrote to repository
+  * Begin Technical Briefing presentation
 
 5/18/14
   * Find PVC material that we already have for building a small maze
