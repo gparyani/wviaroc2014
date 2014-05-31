@@ -1,0 +1,14 @@
+#summary Continuously updated page containing agendas for each meeting.
+#labels Featured
+
+*Please "star" this page!*
+
+=May 31=
+  # Introduction - Review for latecomers - Installing leJOS and working with this space
+  # How to read gyro and write a control feedback loop
+  # Detecting obstacles with the front IR sensor
+    # Calibrating the sensor
+    # Getting values from the sensor
+  # Combining obstacle detection with the control feedback loop
+  # Introduce multithreading
+  # Detecting the IR beacon
