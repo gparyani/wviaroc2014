@@ -17,7 +17,7 @@ public class TurnTester_June10
 	private static SideSensor leftSensor = new EV3UltrasonicSideSensor(SensorPort.S2);
 	private static SideSensor frontSensor = new EV3IRSideSensor(SensorPort.S4);
 //	private static SideSensor rightSensor = new NXTUltrasonicSideSensor(SensorPort.S3);
-	private static SideSensor rightSensor = new EV3IRSideSensor(SensorPort.S3);
+	private static SideSensor rightSensor = new EV3UltrasonicSideSensor(SensorPort.S3);
 	private static ResettableGyroSensor sensor = new ResettableGyroSensor(SensorPort.S1);
 	private static SampleProvider gyro = sensor.getAngleMode();
 	private static SampleProvider rgyro = sensor.getRateMode();
@@ -31,9 +31,10 @@ public class TurnTester_June10
 	private static volatile double x = X_ORIGINAL_VALUE, y = Y_ORIGINAL_VALUE; //Center of all sensors
 	private static volatile int lwLastRead, rwLastRead, tachoCount;
 	private static Deque<Cell> maze = new ArrayDeque<Cell>();
+	private static Queue<Float> leftValues = new ArrayDeque<Float>(), frontValues = new ArrayDeque<Float>(), rightValues = new ArrayDeque<Float>();
 	private static final int ANGLE_ERROR_MARGIN = 5;
-	private static final double CELL_WIDTH = 62.5;
-	private static volatile int xCoordinate, yCoordinate;
+	private static final float CELL_WIDTH = 62.5f;
+//	private static volatile int xCoordinate, yCoordinate;
 	//End variable declarations
 	
 	private static float getDataFromSensor()
@@ -231,7 +232,7 @@ public class TurnTester_June10
 		//Button.waitForAnyPress();
 
 		goStraight(20);	//Begin moving robot
-		forwardThread = new Thread(new MovementThread(20, 0));
+		forwardThread = new Thread(new MovementThread(18, 0));
 		new Thread(new MonitorThread()).start();
 
 		//Check for button presses
@@ -256,24 +257,27 @@ public class TurnTester_June10
 		}		
 	}
 
-	static boolean isTooCloseToNSBorder(double yCoordinate)	//Near north and south borders of a cell
+	static boolean isTooCloseToNSBorder()	//Near north and south borders of a cell
 	{
-		double dist = getDistanceFromBorder(Direction.SOUTH, 0, yCoordinate);	//xCoordinate parameter is ignored if NORTH or SOUTH is passed in
+		double dist = getDistanceFromBorder(Direction.SOUTH);	//xCoordinate parameter is ignored if NORTH or SOUTH is passed in
 		if(isBacking)
 			dist += 8;
-		return (dist > 52 || dist < 7); //if too close to boundary, skip update
+		return (dist > 52 || dist < 10); //if too close to boundary, skip update
 	}
 	
-	static boolean isTooCloseToEWBorder(double xCoordinate)	//Near east and west borders of a cell
+	static boolean isTooCloseToEWBorder()	//Near east and west borders of a cell
 	{
-		double dist = getDistanceFromBorder(Direction.WEST, xCoordinate, 0);	//yCoordinate parameter is ignored if EAST or WEST is passed in
+		double dist = getDistanceFromBorder(Direction.WEST);	//yCoordinate parameter is ignored if EAST or WEST is passed in
 		if(isBacking)
 			dist += 8;
-		return (dist > 52 || dist < 7); //if too close to boundary, skip update
+		return (dist > 52 || dist < 10); //if too close to boundary, skip update
 	}
 	
-	synchronized static double getDistanceFromBorder(Direction border, double xCoord, double yCoord)
+	synchronized static double getDistanceFromBorder(Direction border)
 	{
+		//calculate the grid coordinates of the current cell
+		int xCoord = (x > 0) ? (int)((x + (CELL_WIDTH / 2)) / CELL_WIDTH) : (int)((x - (CELL_WIDTH / 2)) / CELL_WIDTH),
+		yCoord = (int)(y / CELL_WIDTH);
 		double dist;
 		switch(border) {
 		case SOUTH:
@@ -284,10 +288,10 @@ public class TurnTester_June10
 			dist = CELL_WIDTH - dist;
 			break;
 		case EAST:
-			dist = x - (xCoord * CELL_WIDTH);
+			dist = (x > 0) ? (x - ((xCoord * CELL_WIDTH) - CELL_WIDTH/2)):(((xCoord * CELL_WIDTH) + CELL_WIDTH/2) - x );
 			break;
 		case WEST:
-			dist = x - (xCoord * CELL_WIDTH);
+			dist = (x > 0) ? (x - ((xCoord * CELL_WIDTH) - CELL_WIDTH/2)):(((xCoord * CELL_WIDTH) + CELL_WIDTH/2) - x);
 			dist = CELL_WIDTH - dist;
 			break;
 		default:
@@ -362,14 +366,23 @@ public class TurnTester_June10
 		x += deltaX * 2.5 / 360.0 * 31;	//deltaX * gear ratio / (convert degrees to rotations) * wheel circumference
 		y += deltaY * 2.5 / 360.0 * 31;	//deltaY * gear ratio / (convert degrees to rotations) * wheel circumference
 		
-		//calculate the grid coordinates of the current cell
-		xCoordinate = (x > 0) ? (int)((x + (CELL_WIDTH / 2)) / CELL_WIDTH) : (int)((x - (CELL_WIDTH / 2)) / CELL_WIDTH);
-		yCoordinate = (int)(y / CELL_WIDTH);
+		
 	}
 	
 	private static class MonitorThread implements Runnable
 	{		
-		
+		static float movingAverage(Queue<Float> sampleSet, float newSample)
+		{
+			if(newSample == Float.POSITIVE_INFINITY)
+				newSample = CELL_WIDTH;
+			sampleSet.add(newSample);
+			if(sampleSet.size() == 4)
+				sampleSet.remove();
+			float sum = 0;
+			for(float element : sampleSet)
+				sum += element;
+			return sum / sampleSet.size();
+		}
 
 		public void run()
 		{
@@ -382,11 +395,20 @@ public class TurnTester_June10
 				frontReading = frontSensor.getDistanceInCM();
 				rightReading = rightSensor.getDistanceInCM();
 				
-				leftWall = leftReading < 36;	//Maximum distance from left wall is 36
+				//Filter sensor readings
+				leftReading = movingAverage(leftValues, leftReading);
+				frontReading = movingAverage(frontValues, frontReading);
+				rightReading = movingAverage(rightValues, rightReading);
+				
+				leftWall = leftReading < 40;	//Maximum distance from left wall is 36
 				frontWall = frontReading < 24;	//Detect front wall only when close enough
-				rightWall = rightReading < 34;	//IR sensor resolution
+				rightWall = rightReading < 40;
 
 				updateCurrentLoc();
+				
+				//calculate the grid coordinates of the current cell
+				int xCoordinate = (x > 0) ? (int)((x + (CELL_WIDTH / 2)) / CELL_WIDTH) : (int)((x - (CELL_WIDTH / 2)) / CELL_WIDTH),
+					yCoordinate = (int)(y / CELL_WIDTH);
 				
 				front = Direction.getDirectionFromGyro((int)currentReading);
 				Cell currentCell = getCell(xCoordinate, yCoordinate);
@@ -395,7 +417,7 @@ public class TurnTester_June10
 				switch(front)
 				{
 					case NORTH:
-						if(!isTooCloseToNSBorder(yCoordinate)) {//if too close to boundary, skip update
+						if(!isTooCloseToNSBorder()) {//if too close to boundary, skip update
 							currentCell.setNorth(frontReading < 16);
 							currentCell.setWest(leftReading < 32);
 							currentCell.setEast(rightReading < 22);
@@ -405,7 +427,7 @@ public class TurnTester_June10
 						frontWall |= currentCell.northWallExists();
 						break;
 					case EAST:
-						if(!isTooCloseToEWBorder(xCoordinate)) {
+						if(!isTooCloseToEWBorder()) {
 							currentCell.setEast(frontReading < 16 );
 							currentCell.setNorth(leftReading < 32);
 							currentCell.setSouth(rightReading < 22);
@@ -415,7 +437,7 @@ public class TurnTester_June10
 						frontWall |= currentCell.eastWallExists();
 						break;
 					case WEST:
-						if(!isTooCloseToEWBorder(xCoordinate)) {
+						if(!isTooCloseToEWBorder()) {
 							currentCell.setWest(frontReading < 16);
 							currentCell.setSouth(leftReading < 32);
 							currentCell.setNorth(rightReading < 22);
@@ -425,7 +447,7 @@ public class TurnTester_June10
 						frontWall |= currentCell.westWallExists();
 						break;
 					case SOUTH:
-						if(!isTooCloseToNSBorder(yCoordinate)) {
+						if(!isTooCloseToNSBorder()) {
 							currentCell.setSouth(frontReading < 16);
 							currentCell.setEast(leftReading < 32);
 							currentCell.setWest(rightReading < 22);
@@ -441,49 +463,53 @@ public class TurnTester_June10
 				
 				
 				//Navigation logic
-				if(isBacking) //if at a dead end, back up
+				if(front != Direction.IN_BETWEEN)
 				{
-//					System.out.println( "isBacking");
-					if(!rightWall)	//since we are following the left wall, look for the opposite side opening when backing up
+					if(isBacking) //if at a dead end, back up
 					{
-						isTurning = true;
-//						rwLastRead = tachoCount;
-						targetReading -= 90;	//causes movement thread to turn robot right
-						isBacking = false;
-						System.out.println("BACKRIGHT:\t" + currentCell);
+	//					System.out.println( "isBacking");
+						if(!rightWall)	//since we are following the left wall, look for the opposite side opening when backing up
+						{
+							System.out.println("BACKRIGHT:\t" + currentCell);
+							isTurning = true;
+	//						rwLastRead = tachoCount;
+							targetReading -= 90;	//causes movement thread to turn robot right
+							isBacking = false;
+	
+						}
 					}
-				}
-				else if(!isTurning)	//forward motion
-				{
-					if(!leftWall)	//look for the left wall
+					else if(!isTurning)	//forward motion
 					{
-						isTurning = true;
-//						lwLastRead = tachoCount;
-						targetReading += 90;	//turn left
-						System.out.println("LEFT:\t" + currentCell);
+						if(!leftWall)	//look for the left wall
+						{
+							System.out.println("LEFT:\t" + currentCell);
+							isTurning = true;
+	//						lwLastRead = tachoCount;
+							targetReading += 90;	//turn left
+						}
+						else if(frontWall && !rightWall)	//if front wall is blocked, turn right if possible
+						{
+							System.out.println("RIGHT:\t" + currentCell);
+							isTurning = true;
+	//						rwLastRead = tachoCount;
+							targetReading -= 90;
+						}
+						else if(frontWall && rightWall && leftWall)	//detect dead ends; block above will activate in next iteration
+						{
+							System.out.println("BACKING:" + currentCell);
+	//						isTurning = true;
+							isBacking = true;
+	//						targetReading -= 180;
+						}	
 					}
-					else if(frontWall && !rightWall)	//if front wall is blocked, turn right if possible
-					{
-						isTurning = true;
-//						rwLastRead = tachoCount;
-						targetReading -= 90;
-						System.out.println("RIGHT:\t" + currentCell);
-					}
-					else if(frontWall && rightWall && leftWall)	//detect dead ends; block above will activate in next iteration
-					{
-//						isTurning = true;
-						isBacking = true;
-//						targetReading -= 180;
-						System.out.println("BACKING:" + currentCell);
-					}	
 				}
 				offset = currentReading - targetReading;	//recalculate all variables for next iteration
 				if(offset >= -5 && offset <= 5)	//detect when the turn gets completed by the movement thread
 				{
 					isTurning = false;
 				}
-//				System.out.println("Monitor\t" + leftReading + "\t" + frontReading +
-//						"\t" + rightReading + "\t" + tachoCount +"\t => target " + targetReading);
+				System.out.println("Monitor\t" + leftReading + "\t" + frontReading +
+						"\t" + rightReading + "\t" + tachoCount +"\t => target " + targetReading);
 			}
 		}
 	}
@@ -501,8 +527,10 @@ public class TurnTester_June10
 			if( front == Direction.IN_BETWEEN )
 				return 1000;
 				
-			return 50 * (int) getDistanceFromBorder(front.getOppositeDirection(), xCoordinate, yCoordinate);
+			return 40 * (int) getDistanceFromBorder(front.getOppositeDirection());
 		}
+		
+		private static double BEARING_TO_OFFSET_RATIO = 0.85;
 		
 		public void run()
 		{
@@ -522,20 +550,20 @@ public class TurnTester_June10
 				
 				if(offset <= 5 || offset >= -5) //When going straight forward/back
 				{
-					if( rightReading < 12 )
+					if( rightReading < 15 )
 					{
-						offset = (int) (2.2*(rightReading-12) );
+						offset = (int) (2.2*(rightReading-15) );
 						if( isBacking ) offset *= -1;
 //						System.out.println("-R" + rightReading + "\t" + offset);
 					}
-					else if( leftReading < 12 )
+					else if( leftReading < 15 )
 					{
-						offset = (int) (2.2*(12-leftReading));
+						offset = (int) (2.2*(15-leftReading));
 						if( isBacking ) offset *= -1;
 //						System.out.println("-L" + leftReading + "\t" + offset);
 					}
 				}
-				int bearing = (int) (offset/1.1);
+				int bearing = (int) (offset/BEARING_TO_OFFSET_RATIO);
 				int turnAngle = -1 * bearing;
 				int backOff = 1000;
 				
@@ -587,6 +615,7 @@ public class TurnTester_June10
 					{
 //						int temp = (offset >= 45) ? rwLastRead : lwLastRead;
 
+						stopTruck();
 						updateCurrentLoc();
 						backOff = getBackOffFromCoordinates();
 						
@@ -595,7 +624,7 @@ public class TurnTester_June10
 //							backOff = 700;
 						
 						
-						bearing = (int) (offset/1.1);
+						bearing = (int) (offset/BEARING_TO_OFFSET_RATIO);
 						turnAngle = -1 * bearing;
 						System.out.println( "Turn : " + turnAngle + "Backoff\t" + backOff + "\t" + "Bearing: " + bearing);
 						goBackwards(power - 5, bearing, backOff);
