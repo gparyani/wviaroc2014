@@ -25,15 +25,15 @@ public class TurnTester_June10
 	private static volatile float leftReading, frontReading, rightReading, offset;
 	private static int power;
 	private static volatile float targetReading, currentReading;
-	private static Thread forwardThread;
 	private static volatile boolean stalled, leftWall, frontWall, rightWall, isBacking, isTurning;
 	private static final double X_ORIGINAL_VALUE = 0.0, Y_ORIGINAL_VALUE = 20.0;
 	private static volatile double x = X_ORIGINAL_VALUE, y = Y_ORIGINAL_VALUE; //Center of all sensors
-	private static volatile int lwLastRead, rwLastRead, tachoCount;
+	private static volatile int /*lwLastRead, rwLastRead, */rTachoCount, lTachoCount;
 	private static Deque<Cell> maze = new ArrayDeque<Cell>();
 	private static Queue<Float> leftValues = new ArrayDeque<Float>(), frontValues = new ArrayDeque<Float>(), rightValues = new ArrayDeque<Float>();
 	private static final int ANGLE_ERROR_MARGIN = 5;
 	private static final float CELL_WIDTH = 62.5f;
+	private static volatile State currentState = State.CALIBRATING;
 //	private static volatile int xCoordinate, yCoordinate;
 	//End variable declarations
 	
@@ -51,7 +51,12 @@ public class TurnTester_June10
 		return data[0];
 	}
 	
-	private static enum Direction
+	private /*static*/ enum State	//nested enums are implicitly static
+	{
+		CALIBRATING, MAPPING_RUN, WAITING_TO_BEGIN_SOLUTION, SOLUTION_RUN
+	}
+	
+	private enum Direction
 	{
 		NORTH, EAST, SOUTH, WEST, IN_BETWEEN;
 		
@@ -62,7 +67,7 @@ public class TurnTester_June10
 		 */
 		static Direction getDirectionFromGyro(int reading)
 		{
-			if(reading > 0)
+			if(reading >= 360)
 				reading %= 360;	//ensure that we are dealing only with values from 0 to 359
 			else
 			{
@@ -200,56 +205,95 @@ public class TurnTester_June10
 		}
 	}
 	
-	private static class ResetCoordinates implements Runnable
+	private static void calibrateGyro() 
 	{
-		public void run()
-		{
-			System.out.println("Starting solution run");
-			x = X_ORIGINAL_VALUE;
-			y = Y_ORIGINAL_VALUE;
-		}
+		Button.LEDPattern(2);	//solid red
+		try {
+			//Begin gyro reset procedure
+			sensor.reset();
+			Thread.sleep(1500);	//reset delay
+			getRateDataFromSensor();
+			getDataFromSensor();
+			Thread.sleep(4000);
+			//End gyro reset procedure
+		} catch (Exception e) {e.printStackTrace();}
+		Button.LEDPattern(1);	//solid green
 	}
-
-//	@SuppressWarnings("deprecation")	//Thread.stop() is deprecated
+	
+	//	@SuppressWarnings("deprecation")	//Thread.stop() is deprecated
 	public static void main(String[] args) throws Throwable
 	{
 		Button.LEDPattern(2);	//turn button backlight red
 
 //		sensor.hardReset();
 		
-		//Begin gyro reset procedure
-		sensor.reset();
-		Thread.sleep(1500);	//reset delay
-		getRateDataFromSensor();
-		getDataFromSensor();
-		Thread.sleep(4000);
-		//End gyro reset procedure
+		calibrateGyro();
 		
 		Rac3TruckSteering.reset();
 		Button.LEDPattern(1);	//turn button backlight green
 
 		System.out.println("Program starting.");
+		currentState = State.MAPPING_RUN;
 		//Button.waitForAnyPress();
 
-		goStraight(20);	//Begin moving robot
-		forwardThread = new Thread(new MovementThread(18, 0));
 		new Thread(new MonitorThread()).start();
+		Thread.sleep(300);
+		new Thread(new MovementThread(18, 0)).start();
 
 		//Check for button presses
 		new Thread(new Runnable() {
 			public void run()
 			{
-				checkForPresses:
-				if(Button.waitForAnyPress() == Button.ENTER.getId())
+				while(true)
 				{
-					new Thread(new ResetCoordinates()).start();
-					break checkForPresses;
+					if(Button.waitForAnyPress() == Button.ENTER.getId())
+					{
+						System.out.println("Starting solution run");
+						
+						
+						if(currentState == State.MAPPING_RUN)
+						{
+							//initialize values for MonitorThread
+							currentState = State.WAITING_TO_BEGIN_SOLUTION;
+							Button.LEDPattern(4);	//blinking green
+						}
+						else if(currentState == State.WAITING_TO_BEGIN_SOLUTION)
+						{
+							Button.LEDPattern(1);	//solid green
+							resetAllTachoCounts();
+							targetReading = 0;
+							leftValues.clear();
+							frontValues.clear();
+							rightValues.clear();
+							x = X_ORIGINAL_VALUE;
+							y = Y_ORIGINAL_VALUE;
+							front = Direction.NORTH;
+							
+							try {
+								Thread.sleep(1000);
+							} catch (InterruptedException e1) {
+								e1.printStackTrace();
+							}
+							calibrateGyro();
+							
+							currentReading = getDataFromSensor();
+							
+							currentState = State.SOLUTION_RUN;
+							
+							new Thread(new MonitorThread()).start();
+							try {
+								Thread.sleep(500);
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+							new Thread(new MovementThread(18, 0)).start();
+						}
+					}
+					else
+						System.exit(0);
 				}
-				System.exit(0);
 			}
 		}).start();
-		
-		forwardThread.start();
 		//Check for robot crashes into obstacles
 		while(true)
 		{
@@ -260,16 +304,14 @@ public class TurnTester_June10
 	static boolean isTooCloseToNSBorder()	//Near north and south borders of a cell
 	{
 		double dist = getDistanceFromBorder(Direction.SOUTH);	//xCoordinate parameter is ignored if NORTH or SOUTH is passed in
-		if(isBacking)
-			dist += 8;
+
 		return (dist > 52 || dist < 10); //if too close to boundary, skip update
 	}
 	
 	static boolean isTooCloseToEWBorder()	//Near east and west borders of a cell
 	{
 		double dist = getDistanceFromBorder(Direction.WEST);	//yCoordinate parameter is ignored if EAST or WEST is passed in
-		if(isBacking)
-			dist += 8;
+
 		return (dist > 52 || dist < 10); //if too close to boundary, skip update
 	}
 	
@@ -328,17 +370,20 @@ public class TurnTester_June10
 		{
 
 			Cell oldCell = maze.getLast();	//gets the last cell added
-			if(!currentCell.equals(oldCell))
-				maze.removeLast();	//this means that we visited a cell that was unnecessary and should be removed
+//			if(!currentCell.equals(oldCell))
+//				maze.removeLast();	//this means that we visited a cell that was unnecessary and should be removed
 			//set virtual walls so that the robot knows one single path through the maze so that we can get through it without wrong turns
-			if(currentCell.getX() == oldCell.getX() + 1)	//moved east
-				currentCell.setWest(true);
-			else if(currentCell.getX() == oldCell.getX() - 1)	//moved west
-				currentCell.setEast(true);
-			else if(currentCell.getY() == oldCell.getY() + 1)	//moved north
-				currentCell.setSouth(true);
-			else if(currentCell.getY() == oldCell.getY() - 1)	//moved south
-				currentCell.setNorth(true);
+			if(currentState == State.MAPPING_RUN)
+			{
+				if(currentCell.getX() == oldCell.getX() + 1)	//moved east
+					currentCell.setWest(true);
+				else if(currentCell.getX() == oldCell.getX() - 1)	//moved west
+					currentCell.setEast(true);
+				else if(currentCell.getY() == oldCell.getY() + 1)	//moved north
+					currentCell.setSouth(true);
+				else if(currentCell.getY() == oldCell.getY() - 1)	//moved south
+					currentCell.setNorth(true);
+			}
 		}
 		
 //		if(wasAdded)
@@ -349,18 +394,23 @@ public class TurnTester_June10
 	
 	private static synchronized void updateCurrentLoc()
 	{
-		int change;
+		int deltaR, deltaL;
 		double deltaX, deltaY;
 		
-		change = getRightTachoCount() - tachoCount; //All tacho counts on right wheel
-		tachoCount += change;
+		deltaR = getRightTachoCount() - rTachoCount;
+		rTachoCount += deltaR;
+		
+		deltaL = getLeftTachoCount() - lTachoCount;
+		lTachoCount += deltaL;
+			
+		int betterReading = isBacking ? Math.max(deltaL, deltaR) : Math.min(deltaL, deltaR);
 		
 		//currentReading is with respect to +y-axis; add 90 so it's w.r.t. +x-axis
 		//change vector magnitude and direction to x- and y-components
 		//deltaX and deltaY are displacements since last iteration
 		//they are in units of MOTOR degrees
-		deltaX = change * Math.cos(Math.toRadians(currentReading + 90));
-		deltaY = change * Math.sin(Math.toRadians(currentReading + 90));
+		deltaX = betterReading * Math.cos(Math.toRadians(currentReading + 90));
+		deltaY = betterReading * Math.sin(Math.toRadians(currentReading + 90));
 		
 		//update current absolute location
 		x += deltaX * 2.5 / 360.0 * 31;	//deltaX * gear ratio / (convert degrees to rotations) * wheel circumference
@@ -370,7 +420,7 @@ public class TurnTester_June10
 	}
 	
 	private static class MonitorThread implements Runnable
-	{		
+	{
 		static float movingAverage(Queue<Float> sampleSet, float newSample)
 		{
 			if(newSample == Float.POSITIVE_INFINITY)
@@ -386,23 +436,34 @@ public class TurnTester_June10
 
 		public void run()
 		{
-			tachoCount = getRightTachoCount();
-
+			lTachoCount = getLeftTachoCount();
+			rTachoCount = getRightTachoCount();
 			while(true)
 			{
-
+				if(currentState == State.WAITING_TO_BEGIN_SOLUTION) return;
+				
 				leftReading = leftSensor.getDistanceInCM();
 				frontReading = frontSensor.getDistanceInCM();
 				rightReading = rightSensor.getDistanceInCM();
 				
-				//Filter sensor readings
-				leftReading = movingAverage(leftValues, leftReading);
-				frontReading = movingAverage(frontValues, frontReading);
-				rightReading = movingAverage(rightValues, rightReading);
-				
-				leftWall = leftReading < 40;	//Maximum distance from left wall is 36
+				front = Direction.getDirectionFromGyro((int)currentReading);
+
+				if(front != Direction.IN_BETWEEN)
+				{
+					//Filter sensor readings
+					leftReading = movingAverage(leftValues, leftReading);
+					frontReading = movingAverage(frontValues, frontReading);
+					rightReading = movingAverage(rightValues, rightReading);
+				}
+				else
+				{
+					leftValues.clear();
+					frontValues.clear();
+					rightValues.clear();
+				}
+				leftWall = leftReading < 42;	//Maximum distance from left wall is 36
 				frontWall = frontReading < 24;	//Detect front wall only when close enough
-				rightWall = rightReading < 40;
+				rightWall = rightReading < 42;
 
 				updateCurrentLoc();
 				
@@ -410,7 +471,6 @@ public class TurnTester_June10
 				int xCoordinate = (x > 0) ? (int)((x + (CELL_WIDTH / 2)) / CELL_WIDTH) : (int)((x - (CELL_WIDTH / 2)) / CELL_WIDTH),
 					yCoordinate = (int)(y / CELL_WIDTH);
 				
-				front = Direction.getDirectionFromGyro((int)currentReading);
 				Cell currentCell = getCell(xCoordinate, yCoordinate);
 				
 				//sensors will face particular absolute direction depending on the direction that the robot is facing
@@ -420,7 +480,7 @@ public class TurnTester_June10
 						if(!isTooCloseToNSBorder()) {//if too close to boundary, skip update
 							currentCell.setNorth(frontReading < 16);
 							currentCell.setWest(leftReading < 32);
-							currentCell.setEast(rightReading < 22);
+							currentCell.setEast(rightReading < 32);
 						}
 						leftWall |= currentCell.westWallExists();
 						rightWall |= currentCell.eastWallExists();
@@ -430,7 +490,7 @@ public class TurnTester_June10
 						if(!isTooCloseToEWBorder()) {
 							currentCell.setEast(frontReading < 16 );
 							currentCell.setNorth(leftReading < 32);
-							currentCell.setSouth(rightReading < 22);
+							currentCell.setSouth(rightReading < 32);
 						}
 						leftWall |= currentCell.northWallExists();
 						rightWall |= currentCell.southWallExists();
@@ -440,7 +500,7 @@ public class TurnTester_June10
 						if(!isTooCloseToEWBorder()) {
 							currentCell.setWest(frontReading < 16);
 							currentCell.setSouth(leftReading < 32);
-							currentCell.setNorth(rightReading < 22);
+							currentCell.setNorth(rightReading < 32);
 						}
 						leftWall |= currentCell.southWallExists();
 						rightWall |= currentCell.northWallExists();
@@ -508,8 +568,8 @@ public class TurnTester_June10
 				{
 					isTurning = false;
 				}
-				System.out.println("Monitor\t" + leftReading + "\t" + frontReading +
-						"\t" + rightReading + "\t" + tachoCount +"\t => target " + targetReading);
+				System.out.println("Monitor\t" + "offset\t" + offset + "\t" + leftReading + "\t" + frontReading +
+						"\t" + rightReading + "\t" + lTachoCount + "\t" + rTachoCount +"\t => target " + targetReading);
 			}
 		}
 	}
@@ -527,43 +587,52 @@ public class TurnTester_June10
 			if( front == Direction.IN_BETWEEN )
 				return 1000;
 				
-			return 40 * (int) getDistanceFromBorder(front.getOppositeDirection());
+			return 45 * (int) getDistanceFromBorder(front.getOppositeDirection());
 		}
 		
-		private static double BEARING_TO_OFFSET_RATIO = 0.85;
+		private static final double BEARING_TO_OFFSET_RATIO = 0.8;
 		
 		public void run()
 		{
 			boolean alreadyWentBackTurn = false,
 					alreadyWentBack = false;
-
+			
+			float effective_offset;
+			
 //			System.out.println("Time\tTacho\tOffset\tAction\tBearing");
 			for(/*long currentTime = System.currentTimeMillis()*/; true;)
 			{
+				if(currentState == State.WAITING_TO_BEGIN_SOLUTION) 
+				{
+					stopTruck();
+					return;
+				}
+				
 //				String action;
 				
 				currentReading = getDataFromSensor();
 				offset = currentReading - targetReading;
+				effective_offset = offset;
 
 //				System.out.print("Latch T = " + (System.currentTimeMillis() - currentTime) + "\t Steer = " + Rac3TruckSteering.getTachoCount()
 //						+ "\t offset = " + offset + "\t");	
 				
 				if(offset <= 5 || offset >= -5) //When going straight forward/back
 				{
-					if( rightReading < 15 )
+					if( rightReading < 14 )
 					{
-						offset = (int) (2.2*(rightReading-15) );
-						if( isBacking ) offset *= -1;
+						effective_offset = (int) (2*(rightReading-14) );
+						if( isBacking ) effective_offset *= -1;
 //						System.out.println("-R" + rightReading + "\t" + offset);
 					}
-					else if( leftReading < 15 )
+					else if( leftReading < 14 )
 					{
-						offset = (int) (2.2*(15-leftReading));
-						if( isBacking ) offset *= -1;
+						effective_offset = (int) (2*(14-leftReading));
+						if( isBacking ) effective_offset *= -1;
 //						System.out.println("-L" + leftReading + "\t" + offset);
 					}
 				}
-				int bearing = (int) (offset/BEARING_TO_OFFSET_RATIO);
+				int bearing = (int) (effective_offset/BEARING_TO_OFFSET_RATIO);
 				int turnAngle = -1 * bearing;
 				int backOff = 1000;
 				
