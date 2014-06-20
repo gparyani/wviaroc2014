@@ -37,7 +37,7 @@ public class TurnTester_June10
 //	private static volatile int xCoordinate, yCoordinate;
 	//End variable declarations
 	
-	private static float getDataFromSensor()
+	private static synchronized float getDataFromSensor()
 	{
 		float[] data = new float[1];	//an array is necessary to get the data
 		gyro.fetchSample(data, 0);
@@ -305,14 +305,16 @@ public class TurnTester_June10
 	{
 		double dist = getDistanceFromBorder(Direction.SOUTH);	//xCoordinate parameter is ignored if NORTH or SOUTH is passed in
 
-		return (dist > 52 || dist < 10); //if too close to boundary, skip update
+		if(isBacking && dist > 5 && dist < 20) dist-= 5; //Slight adjustment for moving back
+		return (dist > 50 || dist < 13); //if too close to boundary, skip update
 	}
 	
 	static boolean isTooCloseToEWBorder()	//Near east and west borders of a cell
 	{
 		double dist = getDistanceFromBorder(Direction.WEST);	//yCoordinate parameter is ignored if EAST or WEST is passed in
 
-		return (dist > 52 || dist < 10); //if too close to boundary, skip update
+		if(isBacking && dist > 5 && dist < 20) dist-= 5; //Slight adjustment for moving back
+		return (dist > 50 || dist < 13); //if too close to boundary, skip update
 	}
 	
 	synchronized static double getDistanceFromBorder(Direction border)
@@ -376,13 +378,29 @@ public class TurnTester_June10
 			if(currentState == State.MAPPING_RUN)
 			{
 				if(currentCell.getX() == oldCell.getX() + 1)	//moved east
+				{
+					System.out.println("moved east");
+					maze.remove( oldCell );
 					currentCell.setWest(true);
+				}
 				else if(currentCell.getX() == oldCell.getX() - 1)	//moved west
+				{
+					System.out.println("moved west");
+					maze.remove( oldCell );
 					currentCell.setEast(true);
+				}
 				else if(currentCell.getY() == oldCell.getY() + 1)	//moved north
+				{
+					System.out.println("moved north");
+					maze.remove( oldCell );
 					currentCell.setSouth(true);
+				}
 				else if(currentCell.getY() == oldCell.getY() - 1)	//moved south
+				{
+					System.out.println("moved south");
+					maze.remove( oldCell );
 					currentCell.setNorth(true);
+				}
 			}
 		}
 		
@@ -403,7 +421,7 @@ public class TurnTester_June10
 		deltaL = getLeftTachoCount() - lTachoCount;
 		lTachoCount += deltaL;
 			
-		int betterReading = isBacking ? Math.max(deltaL, deltaR) : Math.min(deltaL, deltaR);
+		int betterReading = (deltaL < 0 || deltaR < 0) ? Math.max(deltaL, deltaR) : Math.min(deltaL, deltaR);
 		
 		//currentReading is with respect to +y-axis; add 90 so it's w.r.t. +x-axis
 		//change vector magnitude and direction to x- and y-components
@@ -510,7 +528,7 @@ public class TurnTester_June10
 						if(!isTooCloseToNSBorder()) {
 							currentCell.setSouth(frontReading < 16);
 							currentCell.setEast(leftReading < 32);
-							currentCell.setWest(rightReading < 22);
+							currentCell.setWest(rightReading < 32);
 						}
 						leftWall |= currentCell.eastWallExists();
 						rightWall |= currentCell.westWallExists();
@@ -563,6 +581,7 @@ public class TurnTester_June10
 						}	
 					}
 				}
+				
 				offset = currentReading - targetReading;	//recalculate all variables for next iteration
 				if(offset >= -5 && offset <= 5)	//detect when the turn gets completed by the movement thread
 				{
@@ -587,7 +606,7 @@ public class TurnTester_June10
 			if( front == Direction.IN_BETWEEN )
 				return 1000;
 				
-			return 45 * (int) getDistanceFromBorder(front.getOppositeDirection());
+			return 40 * (int) getDistanceFromBorder(front.getOppositeDirection());
 		}
 		
 		private static final double BEARING_TO_OFFSET_RATIO = 0.8;
