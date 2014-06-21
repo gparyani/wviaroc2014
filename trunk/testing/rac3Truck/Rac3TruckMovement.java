@@ -193,14 +193,20 @@ public class Rac3TruckMovement {
 		Rac3TruckSteering.center();
 	}
 	
-	public static int getLeftTachoCount()
+	public static synchronized int getLeftTachoCount()
 	{
 		return left.getTachoCount();
 	}
 	
-	synchronized public static int getRightTachoCount()
+	public static synchronized int getRightTachoCount()
 	{
 		return right.getTachoCount();
+	}
+	
+	public static synchronized void resetAllTachoCounts()
+	{
+		right.resetTachoCount();
+		left.resetTachoCount();
 	}
 	
 	public static boolean isStalled()
