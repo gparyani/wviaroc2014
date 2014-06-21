@@ -2,6 +2,7 @@ package testing;
 
 import static testing.rac3Truck.Rac3TruckMovement.*;
 import lejos.hardware.Button;
+import lejos.hardware.Sound;
 import lejos.hardware.lcd.LCD;
 import lejos.hardware.port.SensorPort;
 import lejos.robotics.SampleProvider;
@@ -27,13 +28,15 @@ public class SurveyRoute
 	private static volatile float targetReading, currentReading;
 	private static volatile boolean stalled, leftWall, frontWall, rightWall, isBacking, isTurning;
 	private static final double X_ORIGINAL_VALUE = 0.0, Y_ORIGINAL_VALUE = 20.0;
+	private static volatile double realX = 0, realY=1;
 	private static volatile double x = X_ORIGINAL_VALUE, y = Y_ORIGINAL_VALUE; //Center of all sensors
 	private static volatile int /*lwLastRead, rwLastRead, */rTachoCount, lTachoCount;
 	private static Deque<Cell> maze = new ArrayDeque<Cell>();
 	private static Queue<Float> leftValues = new ArrayDeque<Float>(), frontValues = new ArrayDeque<Float>(), rightValues = new ArrayDeque<Float>();
-	private static final int ANGLE_ERROR_MARGIN = 5;
+	private static final int ANGLE_ERROR_MARGIN = 15;
 	private static final float CELL_WIDTH = 62.5f;
 	private static volatile State currentState = State.CALIBRATING;
+	private static Cell lastCell;
 //	private static volatile int xCoordinate, yCoordinate;
 	//End variable declarations
 	
@@ -238,7 +241,7 @@ public class SurveyRoute
 
 		new Thread(new MonitorThread()).start();
 		Thread.sleep(300);
-		new Thread(new MovementThread(18, 0)).start();
+		new Thread(new MovementThread(17, 0)).start();
 
 		//Check for button presses
 		new Thread(new Runnable() {
@@ -247,10 +250,7 @@ public class SurveyRoute
 				while(true)
 				{
 					if(Button.waitForAnyPress() == Button.ENTER.getId())
-					{
-						System.out.println("Starting solution run");
-						
-						
+					{	
 						if(currentState == State.MAPPING_RUN)
 						{
 							//initialize values for MonitorThread
@@ -259,6 +259,8 @@ public class SurveyRoute
 						}
 						else if(currentState == State.WAITING_TO_BEGIN_SOLUTION)
 						{
+							System.out.println("Starting solution run");
+							
 							Button.LEDPattern(1);	//solid green
 							resetAllTachoCounts();
 							targetReading = 0;
@@ -286,7 +288,7 @@ public class SurveyRoute
 							} catch (InterruptedException e) {
 								e.printStackTrace();
 							}
-							new Thread(new MovementThread(18, 0)).start();
+							new Thread(new MovementThread(17, 0)).start();
 						}
 					}
 					else
@@ -303,18 +305,18 @@ public class SurveyRoute
 
 	static boolean isTooCloseToNSBorder()	//Near north and south borders of a cell
 	{
-		double dist = getDistanceFromBorder(Direction.SOUTH);	//xCoordinate parameter is ignored if NORTH or SOUTH is passed in
+		double dist = getDistanceFromBorder(Direction.SOUTH);
 
-		if(isBacking && dist > 5 && dist < 20) dist-= 5; //Slight adjustment for moving back
-		return (dist > 50 || dist < 13); //if too close to boundary, skip update
+//		if(isBacking && dist > 7 && dist < 20) dist-= 7; //Slight adjustment for moving back
+		return (dist > 49 || dist < 14); //if too close to boundary, skip update
 	}
 	
 	static boolean isTooCloseToEWBorder()	//Near east and west borders of a cell
 	{
-		double dist = getDistanceFromBorder(Direction.WEST);	//yCoordinate parameter is ignored if EAST or WEST is passed in
+		double dist = getDistanceFromBorder(Direction.WEST);
 
-		if(isBacking && dist > 5 && dist < 20) dist-= 5; //Slight adjustment for moving back
-		return (dist > 50 || dist < 13); //if too close to boundary, skip update
+//		if(isBacking && dist > 7 && dist < 20) dist-= 7; //Slight adjustment for moving back
+		return (dist > 49 || dist < 14); //if too close to boundary, skip update
 	}
 	
 	synchronized static double getDistanceFromBorder(Direction border)
@@ -332,10 +334,10 @@ public class SurveyRoute
 			dist = CELL_WIDTH - dist;
 			break;
 		case EAST:
-			dist = (x > 0) ? (x - ((xCoord * CELL_WIDTH) - CELL_WIDTH/2)):(((xCoord * CELL_WIDTH) + CELL_WIDTH/2) - x );
+			dist = (x > 0) ? (x - ((xCoord * CELL_WIDTH) - CELL_WIDTH/2)) : (((xCoord * CELL_WIDTH) + CELL_WIDTH/2) - x );
 			break;
 		case WEST:
-			dist = (x > 0) ? (x - ((xCoord * CELL_WIDTH) - CELL_WIDTH/2)):(((xCoord * CELL_WIDTH) + CELL_WIDTH/2) - x);
+			dist = (x > 0) ? (x - ((xCoord * CELL_WIDTH) - CELL_WIDTH/2)) : (((xCoord * CELL_WIDTH) + CELL_WIDTH/2) - x);
 			dist = CELL_WIDTH - dist;
 			break;
 		default:
@@ -421,7 +423,9 @@ public class SurveyRoute
 		deltaL = getLeftTachoCount() - lTachoCount;
 		lTachoCount += deltaL;
 			
-		int betterReading = (deltaL < 0 || deltaR < 0) ? Math.max(deltaL, deltaR) : Math.min(deltaL, deltaR);
+		int betterReading;
+		if( stalled ) betterReading = (deltaL < 0 || deltaR < 0) ? Math.max(deltaL, deltaR) : Math.min(deltaL, deltaR);
+		else betterReading = (deltaL + deltaR) /2 ;
 		
 		//currentReading is with respect to +y-axis; add 90 so it's w.r.t. +x-axis
 		//change vector magnitude and direction to x- and y-components
@@ -431,10 +435,11 @@ public class SurveyRoute
 		deltaY = betterReading * Math.sin(Math.toRadians(currentReading + 90));
 		
 		//update current absolute location
-		x += deltaX * 2.5 / 360.0 * 31;	//deltaX * gear ratio / (convert degrees to rotations) * wheel circumference
-		y += deltaY * 2.5 / 360.0 * 31;	//deltaY * gear ratio / (convert degrees to rotations) * wheel circumference
+		realX += deltaX * 2.5 / 360.0 * 31;	//deltaX * gear ratio / (convert degrees to rotations) * wheel circumference
+		realY += deltaY * 2.5 / 360.0 * 31;	//deltaY * gear ratio / (convert degrees to rotations) * wheel circumference
 		
-		
+		x= realX + 20 * Math.cos(Math.toRadians(currentReading + 90));
+		y = realY + Math.sin(Math.toRadians(currentReading + 90));
 	}
 	
 	private static class MonitorThread implements Runnable
@@ -452,6 +457,7 @@ public class SurveyRoute
 			return sum / sampleSet.size();
 		}
 
+		Cell turningFrom = null;
 		public void run()
 		{
 			lTachoCount = getLeftTachoCount();
@@ -479,9 +485,9 @@ public class SurveyRoute
 					frontValues.clear();
 					rightValues.clear();
 				}
-				leftWall = leftReading < 42;	//Maximum distance from left wall is 36
-				frontWall = frontReading < 24;	//Detect front wall only when close enough
-				rightWall = rightReading < 42;
+				leftWall = leftReading < 44;	//Maximum distance from left wall is 36
+				frontWall = frontReading < 22;	//Detect front wall only when close enough
+				rightWall = rightReading < 44;
 
 				updateCurrentLoc();
 				
@@ -541,6 +547,18 @@ public class SurveyRoute
 				
 				
 				//Navigation logic
+				if(currentState == State.SOLUTION_RUN && maze.getLast().equals(currentCell))
+				{
+					stopTruck();
+					Sound.playTone(1050, 100);
+					try {
+						Thread.sleep(50);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					Sound.playTone(1050, 1000);
+					System.exit(0);
+				}
 				if(front != Direction.IN_BETWEEN)
 				{
 					if(isBacking) //if at a dead end, back up
@@ -555,6 +573,8 @@ public class SurveyRoute
 							isBacking = false;
 	
 						}
+						if( isTurning )
+							turningFrom = currentCell;
 					}
 					else if(!isTurning)	//forward motion
 					{
@@ -578,14 +598,19 @@ public class SurveyRoute
 	//						isTurning = true;
 							isBacking = true;
 	//						targetReading -= 180;
-						}	
+						}
+						
+						if( isTurning )
+							turningFrom = currentCell;
 					}
 				}
-				
+				currentReading = getDataFromSensor();
 				offset = currentReading - targetReading;	//recalculate all variables for next iteration
-				if(offset >= -5 && offset <= 5)	//detect when the turn gets completed by the movement thread
+				if(offset >= -ANGLE_ERROR_MARGIN && offset <= ANGLE_ERROR_MARGIN)	//detect when the turn gets completed by the movement thread
 				{
-					isTurning = false;
+					if( currentCell != turningFrom && front != Direction.IN_BETWEEN 
+							 && (getDistanceFromBorder(front.getOppositeDirection()) > 3)  )
+						isTurning = false;
 				}
 				System.out.println("Monitor\t" + "offset\t" + offset + "\t" + leftReading + "\t" + frontReading +
 						"\t" + rightReading + "\t" + lTachoCount + "\t" + rTachoCount +"\t => target " + targetReading);
@@ -606,7 +631,7 @@ public class SurveyRoute
 			if( front == Direction.IN_BETWEEN )
 				return 1000;
 				
-			return 40 * (int) getDistanceFromBorder(front.getOppositeDirection());
+			return 35 * (int) getDistanceFromBorder(front.getOppositeDirection());
 		}
 		
 		private static final double BEARING_TO_OFFSET_RATIO = 0.8;
@@ -636,17 +661,17 @@ public class SurveyRoute
 //				System.out.print("Latch T = " + (System.currentTimeMillis() - currentTime) + "\t Steer = " + Rac3TruckSteering.getTachoCount()
 //						+ "\t offset = " + offset + "\t");	
 				
-				if(offset <= 5 || offset >= -5) //When going straight forward/back
+				if(!isTurning && (offset <= ANGLE_ERROR_MARGIN || offset >= -ANGLE_ERROR_MARGIN)) //When going straight forward/back
 				{
 					if( rightReading < 14 )
 					{
-						effective_offset = (int) (2*(rightReading-14) );
+						effective_offset = (int) (1.8*(rightReading-14) );
 						if( isBacking ) effective_offset *= -1;
 //						System.out.println("-R" + rightReading + "\t" + offset);
 					}
 					else if( leftReading < 14 )
 					{
-						effective_offset = (int) (2*(14-leftReading));
+						effective_offset = (int) (1.8*(14-leftReading));
 						if( isBacking ) effective_offset *= -1;
 //						System.out.println("-L" + leftReading + "\t" + offset);
 					}
@@ -722,13 +747,14 @@ public class SurveyRoute
 					tiltTo(power, turnAngle);
 //					action = "Go Turn " + bearing ;
 				}
-				else if(offset >= 5 || offset <= -5)	//too much to the left
+				else /*if(offset >= ANGLE_ERROR_MARGIN || offset <= -ANGLE_ERROR_MARGIN) */	//too much to the left
 				{
 			//		System.out.print("small Offset\t");
 					tiltTo(power, turnAngle);
 //					action = "Tilt " + bearing;
 					alreadyWentBackTurn = false;
 				}
+/*
 				else
 				{
 				//	System.out.print("Straight\t");
@@ -736,7 +762,7 @@ public class SurveyRoute
 //					action = "Straight";
 					alreadyWentBackTurn = false;
 				}
-
+*/
 //				System.out.println();	
 //				LCD.clearDisplay();	//we don't want the LCD to be cluttered with output			
 				
