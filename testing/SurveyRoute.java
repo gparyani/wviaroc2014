@@ -3,14 +3,12 @@ package testing;
 import static testing.rac3Truck.Rac3TruckMovement.*;
 import lejos.hardware.Button;
 import lejos.hardware.Sound;
-import lejos.hardware.lcd.LCD;
 import lejos.hardware.port.SensorPort;
 import lejos.robotics.SampleProvider;
 import testing.rac3Truck.Rac3TruckSteering;
 import testing.sensors.*;
 
 import java.util.*;
-import java.util.concurrent.*;
 
 public class SurveyRoute
 {
@@ -28,15 +26,14 @@ public class SurveyRoute
 	private static volatile float targetReading, currentReading;
 	private static volatile boolean stalled, leftWall, frontWall, rightWall, isBacking, isTurning;
 	private static final double X_ORIGINAL_VALUE = 0.0, Y_ORIGINAL_VALUE = 20.0;
-	private static volatile double realX = 0, realY=1;
+	private static volatile double realX = 0, realY = 1;
 	private static volatile double x = X_ORIGINAL_VALUE, y = Y_ORIGINAL_VALUE; //Center of all sensors
 	private static volatile int /*lwLastRead, rwLastRead, */rTachoCount, lTachoCount;
 	private static Deque<Cell> maze = new ArrayDeque<Cell>();
 	private static Queue<Float> leftValues = new ArrayDeque<Float>(), frontValues = new ArrayDeque<Float>(), rightValues = new ArrayDeque<Float>();
 	private static final int ANGLE_ERROR_MARGIN = 15;
-	private static final float CELL_WIDTH = 62.5f;
+	private static final float CELL_WIDTH = 63.5f;
 	private static volatile State currentState = State.CALIBRATING;
-	private static Cell lastCell;
 //	private static volatile int xCoordinate, yCoordinate;
 	//End variable declarations
 	
@@ -100,6 +97,8 @@ public class SurveyRoute
 				return NORTH;
 			case WEST:
 				return EAST;
+			default:
+				break;
 			}
 			return this;	//IN_BETWEEN's opposite direction is also IN_BETWEEN; compiler throws error if in switch statement itself
 		}
@@ -112,7 +111,13 @@ public class SurveyRoute
 	private static class Cell
 	{
 		private int xPos, yPos;	//the grid location of this cell
-		private boolean west, north, south, east;	//the walls surrounding the cell
+		private WallState west = WallState.UNKNOWN, north = WallState.UNKNOWN,
+				south = WallState.UNKNOWN, east = WallState.UNKNOWN;	//the walls surrounding the cell
+		
+		enum WallState
+		{
+			UNKNOWN, NO_WALL, VIRTUAL_WALL, REAL_WALL
+		}
 		
 		Cell(int x, int y)
 		{
@@ -128,55 +133,38 @@ public class SurveyRoute
 			return yPos;
 		}
 
-		boolean westWallExists() {
+		WallState westWallState() {
 			return west;
 		}
 
-		void setWest(boolean west) {
-			if(!this.west)
-			{
-				this.west = west;
-				if (west) 
-					System.out.println(this);
-			}
+		void setWest(WallState west) {
+			this.west = west;
+			System.out.println(this);
 		}
 
-		boolean northWallExists() {
+		WallState northWallState() {
 			return north;
 		}
 
-		void setNorth(boolean north) {
-			if(!this.north)
-			{
-				this.north = north;
-				if(north) 				
-					System.out.println(this);
-			}
+		void setNorth(WallState north) {
+			this.north = north;
 		}
 
-		boolean southWallExists() {
+		WallState southWallState() {
 			return south;
 		}
 
-		void setSouth(boolean south) {
-			if(!this.south)
-			{
-				this.south = south;
-				if( south ) 				
-					System.out.println( this );
-			}
+		void setSouth(WallState south) {
+			this.south = south;
 		}
 		
-		boolean eastWallExists() {
+		WallState eastWallState() {
 			return east;
 		}
 		
-		void setEast(boolean east) {
-			if(!this.east) {
-				this.east = east;
-				if( east ) 				
-					System.out.println( this );
-			}
+		void setEast(WallState east) {
+			this.east = east;
+			System.out.println(this);
 		}
 		
 		@Override
@@ -203,8 +191,44 @@ public class SurveyRoute
 		public String toString()
 		{
 			return Direction.getDirectionFromGyro((int)currentReading) + "\t" + xPos + ", " + yPos + "\t(" + x + ", " + y + ")\tNorth: " +
-					north + "\tEast: " + east + "\tSouth: " + south + "\tWest: " + west + "\t" + leftReading + "\t" +
+					north + "\tSouth: " + south + "\tEast: " + east + "\tWest: " + west + "\t" + leftReading + "\t" +
 							+ frontReading + "\t" + rightReading + "\n";
+		}
+
+		public boolean westWallExists(boolean wall) {
+			if(west == WallState.NO_WALL)
+				wall = false;
+			//return whether a real wall exists, or only if the robot is executing the solution run, if a virtual wall exists
+			wall |=  (west == WallState.REAL_WALL);
+			wall |= (currentState == State.SOLUTION_RUN && west == WallState.VIRTUAL_WALL);
+			return wall;
+		}
+
+		public boolean eastWallExists(boolean wall) {
+			if(east == WallState.NO_WALL)
+				wall = false;
+			//return whether a real wall exists, or only if the robot is executing the solution run, if a virtual wall exists
+			wall |=  (east == WallState.REAL_WALL);
+			wall |= (currentState == State.SOLUTION_RUN && east == WallState.VIRTUAL_WALL);
+			return wall;
+		}
+
+		public boolean northWallExists(boolean wall) {
+			if(north == WallState.NO_WALL)
+				wall = false;
+			//return whether a real wall exists, or only if the robot is executing the solution run, if a virtual wall exists
+			wall |=  (north == WallState.REAL_WALL);
+			wall |= (currentState == State.SOLUTION_RUN && north == WallState.VIRTUAL_WALL);
+			return wall;
+		}
+
+		public boolean southWallExists(boolean wall) {
+			if(south == WallState.NO_WALL)
+				wall = false;
+			//return whether a real wall exists, or only if the robot is executing the solution run, if a virtual wall exists
+			wall |=  (south == WallState.REAL_WALL);
+			wall |= (currentState == State.SOLUTION_RUN && south == WallState.VIRTUAL_WALL);
+			return wall;
 		}
 	}
 	
@@ -226,6 +250,7 @@ public class SurveyRoute
 	//	@SuppressWarnings("deprecation")	//Thread.stop() is deprecated
 	public static void main(String[] args) throws Throwable
 	{
+		System.setErr(System.out);
 		Button.LEDPattern(2);	//turn button backlight red
 
 //		sensor.hardReset();
@@ -256,6 +281,7 @@ public class SurveyRoute
 							//initialize values for MonitorThread
 							currentState = State.WAITING_TO_BEGIN_SOLUTION;
 							Button.LEDPattern(4);	//blinking green
+							System.out.println(maze);
 						}
 						else if(currentState == State.WAITING_TO_BEGIN_SOLUTION)
 						{
@@ -269,8 +295,10 @@ public class SurveyRoute
 							rightValues.clear();
 							x = X_ORIGINAL_VALUE;
 							y = Y_ORIGINAL_VALUE;
+							realX = 0;
+							realY = 1;
 							front = Direction.NORTH;
-							
+							stalled = false;
 							try {
 								Thread.sleep(1000);
 							} catch (InterruptedException e1) {
@@ -383,25 +411,25 @@ public class SurveyRoute
 				{
 					System.out.println("moved east");
 					maze.remove( oldCell );
-					currentCell.setWest(true);
+					currentCell.setWest(Cell.WallState.VIRTUAL_WALL);
 				}
 				else if(currentCell.getX() == oldCell.getX() - 1)	//moved west
 				{
 					System.out.println("moved west");
 					maze.remove( oldCell );
-					currentCell.setEast(true);
+					currentCell.setEast(Cell.WallState.VIRTUAL_WALL);
 				}
 				else if(currentCell.getY() == oldCell.getY() + 1)	//moved north
 				{
 					System.out.println("moved north");
 					maze.remove( oldCell );
-					currentCell.setSouth(true);
+					currentCell.setSouth(Cell.WallState.VIRTUAL_WALL);
 				}
 				else if(currentCell.getY() == oldCell.getY() - 1)	//moved south
 				{
 					System.out.println("moved south");
 					maze.remove( oldCell );
-					currentCell.setNorth(true);
+					currentCell.setNorth(Cell.WallState.VIRTUAL_WALL);
 				}
 			}
 		}
@@ -460,161 +488,194 @@ public class SurveyRoute
 		Cell turningFrom = null;
 		public void run()
 		{
-			lTachoCount = getLeftTachoCount();
-			rTachoCount = getRightTachoCount();
-			while(true)
-			{
-				if(currentState == State.WAITING_TO_BEGIN_SOLUTION) return;
-				
-				leftReading = leftSensor.getDistanceInCM();
-				frontReading = frontSensor.getDistanceInCM();
-				rightReading = rightSensor.getDistanceInCM();
-				
-				front = Direction.getDirectionFromGyro((int)currentReading);
-
-				if(front != Direction.IN_BETWEEN)
+			try {
+				lTachoCount = getLeftTachoCount();
+				rTachoCount = getRightTachoCount();
+				while(true)
 				{
-					//Filter sensor readings
-					leftReading = movingAverage(leftValues, leftReading);
-					frontReading = movingAverage(frontValues, frontReading);
-					rightReading = movingAverage(rightValues, rightReading);
-				}
-				else
-				{
-					leftValues.clear();
-					frontValues.clear();
-					rightValues.clear();
-				}
-				leftWall = leftReading < 44;	//Maximum distance from left wall is 36
-				frontWall = frontReading < 22;	//Detect front wall only when close enough
-				rightWall = rightReading < 44;
-
-				updateCurrentLoc();
-				
-				//calculate the grid coordinates of the current cell
-				int xCoordinate = (x > 0) ? (int)((x + (CELL_WIDTH / 2)) / CELL_WIDTH) : (int)((x - (CELL_WIDTH / 2)) / CELL_WIDTH),
-					yCoordinate = (int)(y / CELL_WIDTH);
-				
-				Cell currentCell = getCell(xCoordinate, yCoordinate);
-				
-				//sensors will face particular absolute direction depending on the direction that the robot is facing
-				switch(front)
-				{
-					case NORTH:
-						if(!isTooCloseToNSBorder()) {//if too close to boundary, skip update
-							currentCell.setNorth(frontReading < 16);
-							currentCell.setWest(leftReading < 32);
-							currentCell.setEast(rightReading < 32);
-						}
-						leftWall |= currentCell.westWallExists();
-						rightWall |= currentCell.eastWallExists();
-						frontWall |= currentCell.northWallExists();
-						break;
-					case EAST:
-						if(!isTooCloseToEWBorder()) {
-							currentCell.setEast(frontReading < 16 );
-							currentCell.setNorth(leftReading < 32);
-							currentCell.setSouth(rightReading < 32);
-						}
-						leftWall |= currentCell.northWallExists();
-						rightWall |= currentCell.southWallExists();
-						frontWall |= currentCell.eastWallExists();
-						break;
-					case WEST:
-						if(!isTooCloseToEWBorder()) {
-							currentCell.setWest(frontReading < 16);
-							currentCell.setSouth(leftReading < 32);
-							currentCell.setNorth(rightReading < 32);
-						}
-						leftWall |= currentCell.southWallExists();
-						rightWall |= currentCell.northWallExists();
-						frontWall |= currentCell.westWallExists();
-						break;
-					case SOUTH:
-						if(!isTooCloseToNSBorder()) {
-							currentCell.setSouth(frontReading < 16);
-							currentCell.setEast(leftReading < 32);
-							currentCell.setWest(rightReading < 32);
-						}
-						leftWall |= currentCell.eastWallExists();
-						rightWall |= currentCell.westWallExists();
-						frontWall |= currentCell.southWallExists();
-						break;
-					//case IN_BETWEEN:
-					default:	//workaround warning
-						break;
-				}
-				
-				
-				//Navigation logic
-				if(currentState == State.SOLUTION_RUN && maze.getLast().equals(currentCell))
-				{
-					stopTruck();
-					Sound.playTone(1050, 100);
-					try {
-						Thread.sleep(50);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-					Sound.playTone(1050, 1000);
-					System.exit(0);
-				}
-				if(front != Direction.IN_BETWEEN)
-				{
-					if(isBacking) //if at a dead end, back up
-					{
-	//					System.out.println( "isBacking");
-						if(!rightWall)	//since we are following the left wall, look for the opposite side opening when backing up
-						{
-							System.out.println("BACKRIGHT:\t" + currentCell);
-							isTurning = true;
-	//						rwLastRead = tachoCount;
-							targetReading -= 90;	//causes movement thread to turn robot right
-							isBacking = false;
+					if(currentState == State.WAITING_TO_BEGIN_SOLUTION) return;
+					
+					leftReading = leftSensor.getDistanceInCM();
+					frontReading = frontSensor.getDistanceInCM();
+					rightReading = rightSensor.getDistanceInCM();
+					
+					front = Direction.getDirectionFromGyro((int)currentReading);
 	
-						}
-						if( isTurning )
-							turningFrom = currentCell;
-					}
-					else if(!isTurning)	//forward motion
+					if(front != Direction.IN_BETWEEN)
 					{
-						if(!leftWall)	//look for the left wall
-						{
-							System.out.println("LEFT:\t" + currentCell);
-							isTurning = true;
-	//						lwLastRead = tachoCount;
-							targetReading += 90;	//turn left
-						}
-						else if(frontWall && !rightWall)	//if front wall is blocked, turn right if possible
-						{
-							System.out.println("RIGHT:\t" + currentCell);
-							isTurning = true;
-	//						rwLastRead = tachoCount;
-							targetReading -= 90;
-						}
-						else if(frontWall && rightWall && leftWall)	//detect dead ends; block above will activate in next iteration
-						{
-							System.out.println("BACKING:" + currentCell);
-	//						isTurning = true;
-							isBacking = true;
-	//						targetReading -= 180;
-						}
-						
-						if( isTurning )
-							turningFrom = currentCell;
+						//Filter sensor readings
+						leftReading = movingAverage(leftValues, leftReading);
+						frontReading = movingAverage(frontValues, frontReading);
+						rightReading = movingAverage(rightValues, rightReading);
 					}
+					else
+					{
+						leftValues.clear();
+						frontValues.clear();
+						rightValues.clear();
+					}
+					leftWall = leftReading < 44;	//Maximum distance from left wall is 36
+					frontWall = frontReading < 22;	//Detect front wall only when close enough
+					rightWall = rightReading < 44;
+	
+					updateCurrentLoc();
+					
+					//calculate the grid coordinates of the current cell
+					int xCoordinate = (x > 0) ? (int)((x + (CELL_WIDTH / 2)) / CELL_WIDTH) : (int)((x - (CELL_WIDTH / 2)) / CELL_WIDTH),
+						yCoordinate = (int)(y / CELL_WIDTH);
+					
+					Cell currentCell = getCell(xCoordinate, yCoordinate);
+					
+					//sensors will face particular absolute direction depending on the direction that the robot is facing
+					switch(front)
+					{
+						case NORTH:
+							if(!isTooCloseToNSBorder() && currentCell.northWallState() == Cell.WallState.UNKNOWN) {//if too close to boundary, skip update
+								if(frontReading < 16)
+									currentCell.setNorth(Cell.WallState.REAL_WALL);
+								if(leftReading < 32)
+									currentCell.setWest(Cell.WallState.REAL_WALL);
+								if(rightReading < 32)
+									currentCell.setEast(Cell.WallState.REAL_WALL);
+							}
+							leftWall = currentCell.westWallExists(leftWall);
+							rightWall = currentCell.eastWallExists(rightWall);
+							frontWall = currentCell.northWallExists(frontWall);
+							break;
+						case EAST:
+							if(!isTooCloseToEWBorder() && currentCell.eastWallState() == Cell.WallState.UNKNOWN) {
+								if(frontReading < 16)
+									currentCell.setEast(Cell.WallState.REAL_WALL);
+								if(leftReading < 32)
+									currentCell.setNorth(Cell.WallState.REAL_WALL);
+								if(rightReading < 32)
+									currentCell.setSouth(Cell.WallState.REAL_WALL);
+							}
+							leftWall = currentCell.northWallExists(leftWall);
+							rightWall = currentCell.southWallExists(rightWall);
+							frontWall = currentCell.eastWallExists(frontWall);
+							break;
+						case WEST:
+							if(!isTooCloseToEWBorder() && currentCell.westWallState() == Cell.WallState.UNKNOWN) {
+								if(frontReading < 16)
+									currentCell.setWest(Cell.WallState.REAL_WALL);
+								if(leftReading < 32)
+									currentCell.setSouth(Cell.WallState.REAL_WALL);
+								if(rightReading < 32)
+									currentCell.setNorth(Cell.WallState.REAL_WALL);
+							}
+							leftWall = currentCell.southWallExists(leftWall);
+							rightWall = currentCell.northWallExists(rightWall);
+							frontWall = currentCell.westWallExists(frontWall);
+							break;
+						case SOUTH:
+							if(!isTooCloseToNSBorder() && currentCell.southWallState() == Cell.WallState.UNKNOWN) {
+								if(frontReading < 16)
+									currentCell.setSouth(Cell.WallState.REAL_WALL);
+								if(leftReading < 32)
+									currentCell.setEast(Cell.WallState.REAL_WALL);
+								if(rightReading < 32)
+									currentCell.setWest(Cell.WallState.REAL_WALL);
+							}
+							leftWall = currentCell.eastWallExists(leftWall);
+							rightWall = currentCell.westWallExists(rightWall);
+							frontWall = currentCell.southWallExists(frontWall);
+							break;
+						//case IN_BETWEEN:
+						default:	//workaround warning
+							break;
+					}
+					
+					
+					//Navigation logic
+					if(currentState == State.SOLUTION_RUN && maze.getLast().equals(currentCell))
+					{
+						stopTruck();
+						Sound.playTone(1050, 100);
+						try {
+							Thread.sleep(50);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+						Sound.playTone(1050, 1000);
+						System.exit(0);
+					}
+					if(front != Direction.IN_BETWEEN)
+					{
+						if(isBacking) //if at a dead end, back up
+						{
+		//					System.out.println( "isBacking");
+							if(!rightWall)	//since we are following the left wall, look for the opposite side opening when backing up
+							{
+								System.out.println("BACKRIGHT:\t" + currentCell);
+								isTurning = true;
+								turningFrom = currentCell;
+		//						rwLastRead = tachoCount;
+								targetReading -= 90;	//causes movement thread to turn robot right
+								isBacking = false;
+							}
+						}
+						else if(!isTurning)	//forward motion
+						{
+							if(!leftWall)	//look for the left wall
+							{
+								System.out.println("LEFT:\t" + currentCell);
+								isTurning = true;
+		//						lwLastRead = tachoCount;
+								targetReading += 90;	//turn left
+							}
+							else if(frontWall && !rightWall)	//if front wall is blocked, turn right if possible
+							{
+								System.out.println("RIGHT:\t" + currentCell);
+								isTurning = true;
+		//						rwLastRead = tachoCount;
+								targetReading -= 90;
+							}
+							else if(frontWall && rightWall && leftWall)	//detect dead ends; block above will activate in next iteration
+							{
+								System.out.println("BACKING:" + currentCell);
+		//						isTurning = true;
+								isBacking = true;
+		//						targetReading -= 180;
+							}
+							
+							if( isTurning )
+								turningFrom = currentCell;
+						}
+					}
+					currentReading = getDataFromSensor();
+					offset = currentReading - targetReading;	//recalculate all variables for next iteration
+					if(isTurning && offset >= -ANGLE_ERROR_MARGIN && offset <= ANGLE_ERROR_MARGIN)	//detect when the turn gets completed by the movement thread
+					{
+						if( currentCell != turningFrom && front != Direction.IN_BETWEEN 
+								 && (getDistanceFromBorder(front.getOppositeDirection()) > 3)  ) {
+							switch(front) {
+							case NORTH:
+								turningFrom.setNorth(Cell.WallState.NO_WALL);
+								currentCell.setSouth(Cell.WallState.NO_WALL);
+								break;
+							case EAST:
+								turningFrom.setEast(Cell.WallState.NO_WALL);
+								currentCell.setWest(Cell.WallState.NO_WALL);
+								break;
+							case SOUTH:
+								turningFrom.setSouth(Cell.WallState.NO_WALL);
+								currentCell.setNorth(Cell.WallState.NO_WALL);
+								break;
+							case WEST:
+								turningFrom.setWest(Cell.WallState.NO_WALL);
+								currentCell.setEast(Cell.WallState.NO_WALL);
+								break;
+							default:	//workaround compiler warning
+								break;
+							}
+							isTurning = false;
+						}
+					}
+					System.out.println("Monitor\t" + "offset\t" + offset + "\t" + leftReading + "\t" + frontReading +
+							"\t" + rightReading + "\t" + lTachoCount + "\t" + rTachoCount +"\t => target " + targetReading);
 				}
-				currentReading = getDataFromSensor();
-				offset = currentReading - targetReading;	//recalculate all variables for next iteration
-				if(offset >= -ANGLE_ERROR_MARGIN && offset <= ANGLE_ERROR_MARGIN)	//detect when the turn gets completed by the movement thread
-				{
-					if( currentCell != turningFrom && front != Direction.IN_BETWEEN 
-							 && (getDistanceFromBorder(front.getOppositeDirection()) > 3)  )
-						isTurning = false;
-				}
-				System.out.println("Monitor\t" + "offset\t" + offset + "\t" + leftReading + "\t" + frontReading +
-						"\t" + rightReading + "\t" + lTachoCount + "\t" + rTachoCount +"\t => target " + targetReading);
-			}
+			} catch (Exception e) {e.printStackTrace(System.out);}
 		}
 	}
 		
@@ -631,7 +692,8 @@ public class SurveyRoute
 			if( front == Direction.IN_BETWEEN )
 				return 1000;
 				
-			return 35 * (int) getDistanceFromBorder(front.getOppositeDirection());
+			return (20 * (int) getDistanceFromBorder(front.getOppositeDirection()) + 600);
+			
 		}
 		
 		private static final double BEARING_TO_OFFSET_RATIO = 0.8;
@@ -665,13 +727,13 @@ public class SurveyRoute
 				{
 					if( rightReading < 14 )
 					{
-						effective_offset = (int) (1.8*(rightReading-14) );
+						effective_offset = (int) (2*(rightReading-14) );
 						if( isBacking ) effective_offset *= -1;
 //						System.out.println("-R" + rightReading + "\t" + offset);
 					}
 					else if( leftReading < 14 )
 					{
-						effective_offset = (int) (1.8*(14-leftReading));
+						effective_offset = (int) (2*(14-leftReading));
 						if( isBacking ) effective_offset *= -1;
 //						System.out.println("-L" + leftReading + "\t" + offset);
 					}
