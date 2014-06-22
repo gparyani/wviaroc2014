@@ -9,10 +9,6 @@ import testing.sensors.*;
 import java.util.*;
 import java.util.concurrent.*;
 public class RecoverData {
-	private static SideSensor leftSensor = new EV3UltrasonicSideSensor(SensorPort.S2);
-	private static SideSensor frontSensor = new EV3IRSideSensor(SensorPort.S4);
-//	private static SideSensor rightSensor = new NXTUltrasonicSideSensor(SensorPort.S3);
-	private static SideSensor rightSensor = new EV3IRSideSensor(SensorPort.S3);
 	private static ResettableGyroSensor sensor = new ResettableGyroSensor(SensorPort.S1);
 	private static SampleProvider gyro = sensor.getAngleMode();
 	private static SampleProvider rgyro = sensor.getRateMode();
@@ -291,106 +287,6 @@ public class RecoverData {
 		return dist;
 	}
 	
-	/**
-	 * Returns a reference to the cached Cell object corresponding to a specific set of grid coordinates. Creates a new Cell if required.
-	 * @param xCoord the x-coordinate of the grid point
-	 * @param yCoord the y-coordinate of the grid point
-	 * @return the reference to the Cell object
-	 */
-	private static Cell getCell(int xCoord, int yCoord)
-	{
-		Cell currentCell = null;
-//			boolean wasAdded = false;
-		for(Cell element : maze)
-		{
-			if(element.getX() == xCoord && element.getY() == yCoord)
-			{
-				currentCell = element;
-				break;
-			}
-		}
-		if(currentCell == null)
-		{
-			currentCell = new Cell(xCoord, yCoord);
-			maze.add(currentCell);
-//				wasAdded = true;
-		}
-		else if(!isTurning)
-		{
-
-			Cell oldCell = maze.getLast();	//gets the last cell added
-			if(!currentCell.equals(oldCell))
-				maze.removeLast();	//this means that we visited a cell that was unnecessary and should be removed
-			//set virtual walls so that the robot knows one single path through the maze so that we can get through it without wrong turns
-			if(currentCell.getX() == oldCell.getX() + 1)	//moved east
-				currentCell.setWest(true);
-			else if(currentCell.getX() == oldCell.getX() - 1)	//moved west
-				currentCell.setEast(true);
-			else if(currentCell.getY() == oldCell.getY() + 1)	//moved north
-				currentCell.setSouth(true);
-			else if(currentCell.getY() == oldCell.getY() - 1)	//moved south
-				currentCell.setNorth(true);
-		}
-		
-//			if(wasAdded)
-//				System.out.println(maze);
-		return currentCell;
-	}
-	
-	
-	private static synchronized void updateCurrentLoc()
-	{
-		int change;
-		double deltaX, deltaY;
-		
-		change = getRightTachoCount() - tachoCount; //All tacho counts on right wheel
-		tachoCount += change;
-		
-		//currentReading is with respect to +y-axis; add 90 so it's w.r.t. +x-axis
-		//change vector magnitude and direction to x- and y-components
-		//deltaX and deltaY are displacements since last iteration
-		//they are in units of MOTOR degrees
-		deltaX = change * Math.cos(Math.toRadians(currentReading + 90));
-		deltaY = change * Math.sin(Math.toRadians(currentReading + 90));
-		
-		//update current absolute location
-		x += deltaX * 2.5 / 360.0 * 31;	//deltaX * gear ratio / (convert degrees to rotations) * wheel circumference
-		y += deltaY * 2.5 / 360.0 * 31;	//deltaY * gear ratio / (convert degrees to rotations) * wheel circumference
-		
-		//calculate the grid coordinates of the current cell
-		xCoordinate = (x > 0) ? (int)((x + (CELL_WIDTH / 2)) / CELL_WIDTH) : (int)((x - (CELL_WIDTH / 2)) / CELL_WIDTH);
-		yCoordinate = (int)(y / CELL_WIDTH);
-	}
-	
-	private static class MonitorThread implements Runnable
-	{		
-		
-
-		public void run()
-		{
-			tachoCount = getRightTachoCount();
-
-			while(true)
-			{
-
-				leftReading = leftSensor.getDistanceInCM();
-				frontReading = frontSensor.getDistanceInCM();
-				rightReading = rightSensor.getDistanceInCM();
-
-				updateCurrentLoc();
-				
-				front = Direction.getDirectionFromGyro((int)currentReading);
-				Cell currentCell = getCell(xCoordinate, yCoordinate);
-				
-				//sensors will face particular absolute direction depending on the direction that the robot is facing
-				
-				
-				//Navigation logic
-				System.out.println("Monitor\t" + leftReading + "\t" + frontReading + "\t" + rightReading + "\t" + tachoCount +"\t => target " + targetReading);
-			}
-		}
-	}
-		
 	private static class MovementThread implements java.lang.Runnable
 	{
 		MovementThread(int _power, float _targetReading)
@@ -405,17 +301,6 @@ public class RecoverData {
 			{
 				currentReading = getDataFromSensor();
 				offset = currentReading - targetReading;
-				if(Math.abs(offset) <= 5) //When going straight forward/back
-				{
-					if( rightReading < 50 )
-					{
-						offset = (int) (2.2*(rightReading-50) );
-					}
-					else if( leftReading < 50 )
-					{
-						offset = (int) (2.2*(50-leftReading));
-					}
-				}
 				int bearing = (int) (offset/1.1);
 				int turnAngle = -1 * bearing;
 				

@@ -32,7 +32,7 @@ public class SurveyRoute
 	private static Deque<Cell> maze = new ArrayDeque<Cell>();
 	private static Queue<Float> leftValues = new ArrayDeque<Float>(), frontValues = new ArrayDeque<Float>(), rightValues = new ArrayDeque<Float>();
 	private static final int ANGLE_ERROR_MARGIN = 15;
-	private static final float CELL_WIDTH = 63.5f;
+	private static final float CELL_WIDTH = 62.5f;
 	private static volatile State currentState = State.CALIBRATING;
 //	private static volatile int xCoordinate, yCoordinate;
 	//End variable declarations
@@ -695,7 +695,7 @@ public class SurveyRoute
 			if( front == Direction.IN_BETWEEN )
 				return 1000;
 				
-			return (20 * (int) getDistanceFromBorder(front.getOppositeDirection()) + 700);
+			return (21 * (int) getDistanceFromBorder(front.getOppositeDirection()) + 600);
 			
 		}
 		
