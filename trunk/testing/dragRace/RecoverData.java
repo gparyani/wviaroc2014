@@ -376,10 +376,6 @@ public class RecoverData {
 				leftReading = leftSensor.getDistanceInCM();
 				frontReading = frontSensor.getDistanceInCM();
 				rightReading = rightSensor.getDistanceInCM();
-				
-				leftWall = leftReading < 36;	//Maximum distance from left wall is 36
-				frontWall = frontReading < 24;	//Detect front wall only when close enough
-				rightWall = rightReading < 34;	//IR sensor resolution
 
 				updateCurrentLoc();
 				
@@ -387,98 +383,10 @@ public class RecoverData {
 				Cell currentCell = getCell(xCoordinate, yCoordinate);
 				
 				//sensors will face particular absolute direction depending on the direction that the robot is facing
-				switch(front)
-				{
-					case NORTH:
-						if(!isTooCloseToNSBorder(yCoordinate)) {//if too close to boundary, skip update
-							currentCell.setNorth(frontReading < 16);
-							currentCell.setWest(leftReading < 32);
-							currentCell.setEast(rightReading < 22);
-						}
-						leftWall |= currentCell.westWallExists();
-						rightWall |= currentCell.eastWallExists();
-						frontWall |= currentCell.northWallExists();
-						break;
-					case EAST:
-						if(!isTooCloseToEWBorder(xCoordinate)) {
-							currentCell.setEast(frontReading < 16 );
-							currentCell.setNorth(leftReading < 32);
-							currentCell.setSouth(rightReading < 22);
-						}
-						leftWall |= currentCell.northWallExists();
-						rightWall |= currentCell.southWallExists();
-						frontWall |= currentCell.eastWallExists();
-						break;
-					case WEST:
-						if(!isTooCloseToEWBorder(xCoordinate)) {
-							currentCell.setWest(frontReading < 16);
-							currentCell.setSouth(leftReading < 32);
-							currentCell.setNorth(rightReading < 22);
-						}
-						leftWall |= currentCell.southWallExists();
-						rightWall |= currentCell.northWallExists();
-						frontWall |= currentCell.westWallExists();
-						break;
-					case SOUTH:
-						if(!isTooCloseToNSBorder(yCoordinate)) {
-							currentCell.setSouth(frontReading < 16);
-							currentCell.setEast(leftReading < 32);
-							currentCell.setWest(rightReading < 22);
-						}
-						leftWall |= currentCell.eastWallExists();
-						rightWall |= currentCell.westWallExists();
-						frontWall |= currentCell.southWallExists();
-						break;
-					//case IN_BETWEEN:
-					default:	//workaround warning
-						break;
-				}
 				
 				
 				//Navigation logic
-				if(isBacking) //if at a dead end, back up
-				{
-//						System.out.println( "isBacking");
-					if(!rightWall)	//since we are following the left wall, look for the opposite side opening when backing up
-					{
-						isTurning = true;
-//							rwLastRead = tachoCount;
-						targetReading -= 90;	//causes movement thread to turn robot right
-						isBacking = false;
-						System.out.println("BACKRIGHT:\t" + currentCell);
-					}
-				}
-				else if(!isTurning)	//forward motion
-				{
-					if(!leftWall)	//look for the left wall
-					{
-						isTurning = true;
-//							lwLastRead = tachoCount;
-						targetReading += 90;	//turn left
-						System.out.println("LEFT:\t" + currentCell);
-					}
-					else if(frontWall && !rightWall)	//if front wall is blocked, turn right if possible
-					{
-						isTurning = true;
-//							rwLastRead = tachoCount;
-						targetReading -= 90;
-						System.out.println("RIGHT:\t" + currentCell);
-					}
-					else if(frontWall && rightWall && leftWall)	//detect dead ends; block above will activate in next iteration
-					{
-//							isTurning = true;
-						isBacking = true;
-//							targetReading -= 180;
-						System.out.println("BACKING:" + currentCell);
-					}	
-				}
-				offset = currentReading - targetReading;	//recalculate all variables for next iteration
-				if(offset >= -5 && offset <= 5)	//detect when the turn gets completed by the movement thread
-				{
-					isTurning = false;
-				}
-//					System.out.println("Monitor\t" + leftReading + "\t" + frontReading +
-//							"\t" + rightReading + "\t" + tachoCount +"\t => target " + targetReading);
+				System.out.println("Monitor\t" + leftReading + "\t" + frontReading + "\t" + rightReading + "\t" + tachoCount +"\t => target " + targetReading);
 			}
 		}
 	}
@@ -499,13 +407,13 @@ public class RecoverData {
 				offset = currentReading - targetReading;
 				if(Math.abs(offset) <= 5) //When going straight forward/back
 				{
-					if( rightReading < 12 )
+					if( rightReading < 50 )
 					{
-						offset = (int) (2.2*(rightReading-12) );
+						offset = (int) (2.2*(rightReading-50) );
 					}
-					else if( leftReading < 12 )
+					else if( leftReading < 50 )
 					{
-						offset = (int) (2.2*(12-leftReading));
+						offset = (int) (2.2*(50-leftReading));
 					}
 				}
 				int bearing = (int) (offset/1.1);
@@ -544,10 +452,8 @@ public class RecoverData {
 				{
 				//	System.out.print("Straight\t");
 					goStraight(power);
-//						action = "Straight";
 				}
 
-//					System.out.println();	
 //					LCD.clearDisplay();	//we don't want the LCD to be cluttered with output			
 				
 			}
