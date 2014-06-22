@@ -396,6 +396,9 @@ public class SurveyRoute
 		{
 			currentCell = new Cell(xCoord, yCoord);
 			maze.add(currentCell);
+			leftValues.clear();
+			frontValues.clear();
+			rightValues.clear();
 //			wasAdded = true;
 		}
 		else if(!isTurning)
@@ -692,7 +695,7 @@ public class SurveyRoute
 			if( front == Direction.IN_BETWEEN )
 				return 1000;
 				
-			return (20 * (int) getDistanceFromBorder(front.getOppositeDirection()) + 600);
+			return (20 * (int) getDistanceFromBorder(front.getOppositeDirection()) + 700);
 			
 		}
 		
