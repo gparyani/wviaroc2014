@@ -225,9 +225,9 @@ public class RecoverData {
 		System.out.println("Program starting.");
 		//Button.waitForAnyPress();
 
-		goStraight(20);	//Begin moving robot
-		forwardThread = new Thread(new MovementThread(20, 0));
-		new Thread(new MonitorThread()).start();
+		goStraight(100);	//Begin moving robot
+		forwardThread = new Thread(new MovementThread(100, 0));
+		//new Thread(new MonitorThread()).start();
 
 		//Check for button presses
 		new Thread(new Runnable() {
