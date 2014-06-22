@@ -26,7 +26,7 @@ public class Rac3TruckSteering {
 			steering.stop();
 		//	System.out.println("Should be right");	//TODO debug statement
 			
-			steering.rotate(-167);
+			steering.rotate(-160);
 			steering.resetTachoCount();
 			resetCalled = true;
 		//	System.out.println("Steering reset");	//TODO debug statement
