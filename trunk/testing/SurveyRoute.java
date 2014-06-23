@@ -455,7 +455,7 @@ public class SurveyRoute
 		lTachoCount += deltaL;
 			
 		int betterReading;
-		if( stalled ) betterReading = (deltaL < 0 || deltaR < 0) ? Math.max(deltaL, deltaR) : Math.min(deltaL, deltaR);
+		if(stalled) betterReading = 0; //slippage
 		else betterReading = (deltaL + deltaR) /2 ;
 		
 		//currentReading is with respect to +y-axis; add 90 so it's w.r.t. +x-axis
@@ -470,7 +470,7 @@ public class SurveyRoute
 		realY += deltaY * 2.5 / 360.0 * 31;	//deltaY * gear ratio / (convert degrees to rotations) * wheel circumference
 		
 		x= realX + 20 * Math.cos(Math.toRadians(currentReading + 90));
-		y = realY + Math.sin(Math.toRadians(currentReading + 90));
+		y = realY + 20* Math.sin(Math.toRadians(currentReading + 90));
 	}
 	
 	private static class MonitorThread implements Runnable
@@ -517,9 +517,9 @@ public class SurveyRoute
 						frontValues.clear();
 						rightValues.clear();
 					}
-					leftWall = leftReading < 44;	//Maximum distance from left wall is 36
+					leftWall = leftReading < 46;	//Maximum distance from left wall is 36
 					frontWall = frontReading < 22;	//Detect front wall only when close enough
-					rightWall = rightReading < 44;
+					rightWall = rightReading < 46;
 	
 					updateCurrentLoc();
 					
@@ -536,9 +536,9 @@ public class SurveyRoute
 							if(!isTooCloseToNSBorder() && currentCell.northWallState() == Cell.WallState.UNKNOWN) {//if too close to boundary, skip update
 								if(frontReading < 16)
 									currentCell.setNorth(Cell.WallState.REAL_WALL);
-								if(leftReading < 32)
+								if(leftReading < 28)
 									currentCell.setWest(Cell.WallState.REAL_WALL);
-								if(rightReading < 32)
+								if(rightReading < 28)
 									currentCell.setEast(Cell.WallState.REAL_WALL);
 							}
 							leftWall = currentCell.westWallExists(leftWall);
@@ -549,9 +549,9 @@ public class SurveyRoute
 							if(!isTooCloseToEWBorder() && currentCell.eastWallState() == Cell.WallState.UNKNOWN) {
 								if(frontReading < 16)
 									currentCell.setEast(Cell.WallState.REAL_WALL);
-								if(leftReading < 32)
+								if(leftReading < 28)
 									currentCell.setNorth(Cell.WallState.REAL_WALL);
-								if(rightReading < 32)
+								if(rightReading < 28)
 									currentCell.setSouth(Cell.WallState.REAL_WALL);
 							}
 							leftWall = currentCell.northWallExists(leftWall);
@@ -562,9 +562,9 @@ public class SurveyRoute
 							if(!isTooCloseToEWBorder() && currentCell.westWallState() == Cell.WallState.UNKNOWN) {
 								if(frontReading < 16)
 									currentCell.setWest(Cell.WallState.REAL_WALL);
-								if(leftReading < 32)
+								if(leftReading < 28)
 									currentCell.setSouth(Cell.WallState.REAL_WALL);
-								if(rightReading < 32)
+								if(rightReading < 28)
 									currentCell.setNorth(Cell.WallState.REAL_WALL);
 							}
 							leftWall = currentCell.southWallExists(leftWall);
@@ -575,9 +575,9 @@ public class SurveyRoute
 							if(!isTooCloseToNSBorder() && currentCell.southWallState() == Cell.WallState.UNKNOWN) {
 								if(frontReading < 16)
 									currentCell.setSouth(Cell.WallState.REAL_WALL);
-								if(leftReading < 32)
+								if(leftReading < 28)
 									currentCell.setEast(Cell.WallState.REAL_WALL);
-								if(rightReading < 32)
+								if(rightReading < 28)
 									currentCell.setWest(Cell.WallState.REAL_WALL);
 							}
 							leftWall = currentCell.eastWallExists(leftWall);
@@ -695,18 +695,18 @@ public class SurveyRoute
 			if( front == Direction.IN_BETWEEN )
 				return 1000;
 				
-			return (21 * (int) getDistanceFromBorder(front.getOppositeDirection()) + 600);
+			return (21 * (int) getDistanceFromBorder(front.getOppositeDirection()) + 550);
 			
 		}
 		
-		private static final double BEARING_TO_OFFSET_RATIO = 0.8;
+		private static final double BEARING_TO_OFFSET_RATIO = 0.6;
 		
 		public void run()
 		{
 			boolean alreadyWentBackTurn = false,
 					alreadyWentBack = false;
 			
-			float effective_offset;
+			float effectiveOffset;
 			
 //			System.out.println("Time\tTacho\tOffset\tAction\tBearing");
 			for(/*long currentTime = System.currentTimeMillis()*/; true;)
@@ -721,7 +721,7 @@ public class SurveyRoute
 				
 				currentReading = getDataFromSensor();
 				offset = currentReading - targetReading;
-				effective_offset = offset;
+				effectiveOffset = offset;
 
 //				System.out.print("Latch T = " + (System.currentTimeMillis() - currentTime) + "\t Steer = " + Rac3TruckSteering.getTachoCount()
 //						+ "\t offset = " + offset + "\t");	
@@ -730,18 +730,18 @@ public class SurveyRoute
 				{
 					if( rightReading < 14 )
 					{
-						effective_offset = (int) (2*(rightReading-14) );
-						if( isBacking ) effective_offset *= -1;
+						effectiveOffset = (int) (1.5*(rightReading-14) );
+						if( isBacking ) effectiveOffset *= -1;
 //						System.out.println("-R" + rightReading + "\t" + offset);
 					}
 					else if( leftReading < 14 )
 					{
-						effective_offset = (int) (2*(14-leftReading));
-						if( isBacking ) effective_offset *= -1;
+						effectiveOffset = (int) (1.5*(14-leftReading));
+						if( isBacking ) effectiveOffset *= -1;
 //						System.out.println("-L" + leftReading + "\t" + offset);
 					}
 				}
-				int bearing = (int) (effective_offset/BEARING_TO_OFFSET_RATIO);
+				int bearing = (int) (effectiveOffset/BEARING_TO_OFFSET_RATIO);
 				int turnAngle = -1 * bearing;
 				int backOff = 1000;
 				
