@@ -12,19 +12,15 @@ public class RecoverData {
 	private static ResettableGyroSensor sensor = new ResettableGyroSensor(SensorPort.S1);
 	private static SampleProvider gyro = sensor.getAngleMode();
 	private static SampleProvider rgyro = sensor.getRateMode();
-	private static Direction front;
-	private static volatile float leftReading, frontReading, rightReading, offset;
+	private static volatile float offset;
 	private static int power;
 	private static volatile float targetReading, currentReading;
 	private static Thread forwardThread;
-	private static volatile boolean stalled, leftWall, frontWall, rightWall, isBacking, isTurning;
+	private static volatile boolean stalled, isBacking;
 	private static final double X_ORIGINAL_VALUE = 0.0, Y_ORIGINAL_VALUE = 20.0;
 	private static volatile double x = X_ORIGINAL_VALUE, y = Y_ORIGINAL_VALUE; //Center of all sensors
-	private static volatile int lwLastRead, rwLastRead, tachoCount;
-	private static Deque<Cell> maze = new ArrayDeque<Cell>();
 	private static final int ANGLE_ERROR_MARGIN = 5;
 	private static final double CELL_WIDTH = 62.5;
-	private static volatile int xCoordinate, yCoordinate;
 	//End variable declarations
 	
 	private static float getDataFromSensor()
@@ -91,104 +87,6 @@ public class RecoverData {
 	 * Represents a cell within a maze. A maze is composed of several cells.
 	 *
 	 */
-	private static class Cell
-	{
-		private int xPos, yPos;	//the grid location of this cell
-		private boolean west, north, south, east;	//the walls surrounding the cell
-		
-		Cell(int x, int y)
-		{
-			this.xPos = x;
-			this.yPos = y;
-		}
-
-		int getX() {
-			return xPos;
-		}
-
-		int getY() {
-			return yPos;
-		}
-
-		boolean westWallExists() {
-			return west;
-		}
-
-		void setWest(boolean west) {
-			if(!this.west)
-			{
-				this.west = west;
-				if (west) 
-					System.out.println(this);
-			}
-		}
-
-		boolean northWallExists() {
-			return north;
-		}
-
-		void setNorth(boolean north) {
-			if(!this.north)
-			{
-				this.north = north;
-				if(north) 				
-					System.out.println(this);
-			}
-		}
-
-		boolean southWallExists() {
-			return south;
-		}
-
-		void setSouth(boolean south) {
-			if(!this.south)
-			{
-				this.south = south;
-				if( south ) 				
-					System.out.println( this );
-			}
-		}
-		
-		boolean eastWallExists() {
-			return east;
-		}
-		
-		void setEast(boolean east) {
-			if(!this.east) {
-				this.east = east;
-				if( east ) 				
-					System.out.println( this );
-			}
-		}
-		
-		@Override
-		public boolean equals(Object c)
-		{
-			if(super.equals(c))
-				return true;
-			else if(c instanceof Cell)	//returns false if c == null
-			{
-				Cell cell = (Cell) c;
-				return xPos == cell.xPos && yPos == cell.yPos;
-			}
-			else
-				return false;
-		}
-		
-		@Override
-		public int hashCode()
-		{
-			return xPos * 3737 + yPos;
-		}
-		
-		@Override
-		public String toString()
-		{
-			return Direction.getDirectionFromGyro((int)currentReading) + "\t" + xPos + ", " + yPos + "\t(" + x + ", " + y + ")\tNorth: " +
-					north + "\tEast: " + east + "\tSouth: " + south + "\tWest: " + west + "\t" + leftReading + "\t" +
-							+ frontReading + "\t" + rightReading + "\n";
-		}
-	}
 	
 	private static class ResetCoordinates implements Runnable
 	{
@@ -328,7 +226,7 @@ public class RecoverData {
 					tiltTo(power, turnAngle);
 //						action = "Go Turn " + bearing ;
 				}
-				else if(offset >= 5 || offset <= -5)	//too much to the left
+				else if(Math.abs(offset) >= 5)	//too much to the left
 				{
 			//		System.out.print("small Offset\t");
 					tiltTo(power, turnAngle);
