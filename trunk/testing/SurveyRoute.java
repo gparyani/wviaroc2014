@@ -13,7 +13,7 @@ import java.util.*;
 public class SurveyRoute
 {
 	//Begin variable declarations
-	private static SideSensor leftSensor = new EV3UltrasonicSideSensor(SensorPort.S2);
+	private static SideSensor leftSensor = new EV3IRSideSensor(SensorPort.S2);
 	private static SideSensor frontSensor = new EV3IRSideSensor(SensorPort.S4);
 //	private static SideSensor rightSensor = new NXTUltrasonicSideSensor(SensorPort.S3);
 	private static SideSensor rightSensor = new EV3UltrasonicSideSensor(SensorPort.S3);
@@ -32,7 +32,7 @@ public class SurveyRoute
 	private static Deque<Cell> maze = new ArrayDeque<Cell>();
 	private static Queue<Float> leftValues = new ArrayDeque<Float>(), frontValues = new ArrayDeque<Float>(), rightValues = new ArrayDeque<Float>();
 	private static final int ANGLE_ERROR_MARGIN = 15;
-	private static final float CELL_WIDTH = 62.5f;
+	private static final float CELL_WIDTH = 71;
 	private static volatile State currentState = State.CALIBRATING;
 //	private static volatile int xCoordinate, yCoordinate;
 	//End variable declarations
@@ -266,7 +266,7 @@ public class SurveyRoute
 
 		new Thread(new MonitorThread()).start();
 		Thread.sleep(300);
-		new Thread(new MovementThread(17, 0)).start();
+		new Thread(new MovementThread(22, 0)).start();
 
 		//Check for button presses
 		new Thread(new Runnable() {
@@ -316,7 +316,7 @@ public class SurveyRoute
 							} catch (InterruptedException e) {
 								e.printStackTrace();
 							}
-							new Thread(new MovementThread(17, 0)).start();
+							new Thread(new MovementThread(22, 0)).start();
 						}
 					}
 					else
@@ -336,7 +336,7 @@ public class SurveyRoute
 		double dist = getDistanceFromBorder(Direction.SOUTH);
 
 //		if(isBacking && dist > 7 && dist < 20) dist-= 7; //Slight adjustment for moving back
-		return (dist > 49 || dist < 14); //if too close to boundary, skip update
+		return (dist > (CELL_WIDTH - 20) || dist < 20); //if too close to boundary, skip update
 	}
 	
 	static boolean isTooCloseToEWBorder()	//Near east and west borders of a cell
@@ -344,7 +344,7 @@ public class SurveyRoute
 		double dist = getDistanceFromBorder(Direction.WEST);
 
 //		if(isBacking && dist > 7 && dist < 20) dist-= 7; //Slight adjustment for moving back
-		return (dist > 49 || dist < 14); //if too close to boundary, skip update
+		return (dist > (CELL_WIDTH - 20) || dist < 20); //if too close to boundary, skip update
 	}
 	
 	synchronized static double getDistanceFromBorder(Direction border)
@@ -455,7 +455,8 @@ public class SurveyRoute
 		lTachoCount += deltaL;
 			
 		int betterReading;
-		if(stalled) betterReading = 0; //slippage
+		if(Math.abs(deltaL) < 2 || Math.abs(deltaR) < 2) 
+			betterReading = (deltaL < 0 || deltaR < 0) ? Math.max(deltaL, deltaR) : Math.min(deltaL, deltaR);
 		else betterReading = (deltaL + deltaR) /2 ;
 		
 		//currentReading is with respect to +y-axis; add 90 so it's w.r.t. +x-axis
@@ -591,6 +592,7 @@ public class SurveyRoute
 					
 					
 					//Navigation logic
+					
 					if(currentState == State.SOLUTION_RUN && maze.getLast().equals(currentCell))
 					{
 						stopTruck();
@@ -603,7 +605,7 @@ public class SurveyRoute
 						Sound.playTone(1050, 1000);
 						System.exit(0);
 					}
-					if(front != Direction.IN_BETWEEN)
+					if(front != Direction.IN_BETWEEN && ( leftValues.size() > 2 ))
 					{
 						if(isBacking) //if at a dead end, back up
 						{
