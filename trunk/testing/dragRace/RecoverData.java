@@ -16,11 +16,9 @@ public class RecoverData {
 	private static int power;
 	private static volatile float targetReading, currentReading;
 	private static Thread forwardThread;
-	private static volatile boolean stalled, isBacking;
+	private static volatile boolean stalled;
 	private static final double X_ORIGINAL_VALUE = 0.0, Y_ORIGINAL_VALUE = 20.0;
 	private static volatile double x = X_ORIGINAL_VALUE, y = Y_ORIGINAL_VALUE; //Center of all sensors
-	private static final int ANGLE_ERROR_MARGIN = 5;
-	private static final double CELL_WIDTH = 62.5;
 	//End variable declarations
 	
 	private static float getDataFromSensor()
@@ -35,52 +33,6 @@ public class RecoverData {
 		float[] data = new float[1];	//an array is necessary to get the data
 		rgyro.fetchSample(data, 0);
 		return data[0];
-	}
-	
-	private static enum Direction
-	{
-		NORTH, EAST, SOUTH, WEST, IN_BETWEEN;
-		
-		/**
-		 * Gets the Direction at which the robot is facing.
-		 * @param reading the reading from the gyro
-		 * @return the Direction object
-		 */
-		static Direction getDirectionFromGyro(int reading)
-		{
-			if(reading > 0)
-				reading %= 360;	//ensure that we are dealing only with values from 0 to 359
-			else
-			{
-				while(reading < 0)
-					reading += 360;
-			}
-			
-			if(reading >= (90 - ANGLE_ERROR_MARGIN) && reading <= (90 + ANGLE_ERROR_MARGIN))
-				return WEST;
-			if(reading >= (180 - ANGLE_ERROR_MARGIN) && reading <= (180 + ANGLE_ERROR_MARGIN))
-				return SOUTH;
-			if(reading >= (270 - ANGLE_ERROR_MARGIN) && reading <= (270 + ANGLE_ERROR_MARGIN))
-				return EAST;
-			if(reading >= (360 - ANGLE_ERROR_MARGIN) || reading <= ANGLE_ERROR_MARGIN)
-				return NORTH;
-			return IN_BETWEEN;
-		}
-		
-		Direction getOppositeDirection()
-		{
-			switch(this) {
-			case NORTH:
-				return SOUTH;
-			case EAST:
-				return WEST;
-			case SOUTH:
-				return NORTH;
-			case WEST:
-				return EAST;
-			}
-			return this;	//IN_BETWEEN's opposite direction is also IN_BETWEEN; compiler throws error if in switch statement itself
-		}
 	}
 	
 	/**
@@ -144,47 +96,6 @@ public class RecoverData {
 			stalled = isStalled();	//handled in movement thread
 		}		
 	}
-
-	static boolean isTooCloseToNSBorder(double yCoordinate)	//Near north and south borders of a cell
-	{
-		double dist = getDistanceFromBorder(Direction.SOUTH, 0, yCoordinate);	//xCoordinate parameter is ignored if NORTH or SOUTH is passed in
-		if(isBacking)
-			dist += 8;
-		return (dist > 52 || dist < 7); //if too close to boundary, skip update
-	}
-	
-	static boolean isTooCloseToEWBorder(double xCoordinate)	//Near east and west borders of a cell
-	{
-		double dist = getDistanceFromBorder(Direction.WEST, xCoordinate, 0);	//yCoordinate parameter is ignored if EAST or WEST is passed in
-		if(isBacking)
-			dist += 8;
-		return (dist > 52 || dist < 7); //if too close to boundary, skip update
-	}
-	
-	synchronized static double getDistanceFromBorder(Direction border, double xCoord, double yCoord)
-	{
-		double dist;
-		switch(border) {
-		case SOUTH:
-			dist = y - (yCoord * CELL_WIDTH);	//how far the robot is from the wall behind it
-			break;
-		case NORTH:
-			dist = y - (yCoord * CELL_WIDTH);	//how far the robot is from the wall behind it
-			dist = CELL_WIDTH - dist;
-			break;
-		case EAST:
-			dist = x - (xCoord * CELL_WIDTH);
-			break;
-		case WEST:
-			dist = x - (xCoord * CELL_WIDTH);
-			dist = CELL_WIDTH - dist;
-			break;
-		default:
-			throw new IllegalArgumentException("Border can't be IN_BETWEEN");
-		}
-		return dist;
-	}
-	
 	private static class MovementThread implements java.lang.Runnable
 	{
 		MovementThread(int _power, float _targetReading)
