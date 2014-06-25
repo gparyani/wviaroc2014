@@ -7,19 +7,39 @@ import lejos.robotics.SampleProvider;
 public class EV3IRSideSensor extends SideSensor
 {
 	private EV3IRSensor detector; 
-	private SampleProvider sensor;
+	private SampleProvider distance, seek;
 	
 	public EV3IRSideSensor(Port port)
 	{
 		detector = new EV3IRSensor(port);
-		sensor = detector.getDistanceMode();
+		distance = detector.getDistanceMode();
+		seek = detector.getSeekMode();
+	}
+	
+	public synchronized float getBearingFromBeacon(int channel)
+	{
+		channel -= 1;
+		channel *= 2;
+		float[] data = new float[8];
+		seek.fetchSample(data, 0);
+		return data[channel];
+	}
+	
+	public synchronized float getDistanceFromBeacon(int channel)
+	{
+		channel -= 1;
+		channel *= 2;
+		channel += 1;
+		float[] data = new float[8];
+		seek.fetchSample(data, 0);
+		return data[channel];
 	}
 	
 	@Override
-	public float getDistanceInCM()
+	public synchronized float getDistanceInCM()
 	{
-		float[] data = new float[sensor.sampleSize()];
-		sensor.fetchSample(data, 0);
+		float[] data = new float[distance.sampleSize()];
+		distance.fetchSample(data, 0);
 		return calibrateIRDistance(data[0]);
 	}
 	

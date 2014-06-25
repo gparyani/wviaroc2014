@@ -39,16 +39,6 @@ public class RecoverData {
 	 * Represents a cell within a maze. A maze is composed of several cells.
 	 *
 	 */
-	
-	private static class ResetCoordinates implements Runnable
-	{
-		public void run()
-		{
-			System.out.println("Starting solution run");
-			x = X_ORIGINAL_VALUE;
-			y = Y_ORIGINAL_VALUE;
-		}
-	}
 
 //		@SuppressWarnings("deprecation")	//Thread.stop() is deprecated
 	public static void main(String[] args) throws Throwable
@@ -69,25 +59,11 @@ public class RecoverData {
 		Button.LEDPattern(1);	//turn button backlight green
 
 		System.out.println("Program starting.");
-		//Button.waitForAnyPress();
+		Button.waitForAnyPress();
 
 		goStraight(100);	//Begin moving robot
 		forwardThread = new Thread(new MovementThread(100, 0));
 		//new Thread(new MonitorThread()).start();
-
-		//Check for button presses
-		new Thread(new Runnable() {
-			public void run()
-			{
-				checkForPresses:
-				if(Button.waitForAnyPress() == Button.ENTER.getId())
-				{
-					new Thread(new ResetCoordinates()).start();
-					break checkForPresses;
-				}
-				System.exit(0);
-			}
-		}).start();
 		
 		forwardThread.start();
 		//Check for robot crashes into obstacles
