@@ -13,7 +13,7 @@ import java.util.*;
 public class SurveyRoute
 {
 	//Begin variable declarations
-	private static SideSensor leftSensor = new EV3IRSideSensor(SensorPort.S2);
+	private static SideSensor leftSensor = new EV3UltrasonicSideSensor(SensorPort.S2);
 	private static SideSensor frontSensor = new EV3IRSideSensor(SensorPort.S4);
 //	private static SideSensor rightSensor = new NXTUltrasonicSideSensor(SensorPort.S3);
 	private static SideSensor rightSensor = new EV3UltrasonicSideSensor(SensorPort.S3);
@@ -31,7 +31,7 @@ public class SurveyRoute
 	private static volatile int /*lwLastRead, rwLastRead, */rTachoCount, lTachoCount;
 	private static Deque<Cell> maze = new ArrayDeque<Cell>();
 	private static Queue<Float> leftValues = new ArrayDeque<Float>(), frontValues = new ArrayDeque<Float>(), rightValues = new ArrayDeque<Float>();
-	private static final int ANGLE_ERROR_MARGIN = 15;
+	private static final int ANGLE_ERROR_MARGIN = 10;
 	private static final float CELL_WIDTH = 71;
 	private static volatile State currentState = State.CALIBRATING;
 //	private static volatile int xCoordinate, yCoordinate;
@@ -266,7 +266,7 @@ public class SurveyRoute
 
 		new Thread(new MonitorThread()).start();
 		Thread.sleep(300);
-		new Thread(new MovementThread(22, 0)).start();
+		new Thread(new MovementThread(20, 0)).start();
 
 		//Check for button presses
 		new Thread(new Runnable() {
@@ -316,7 +316,7 @@ public class SurveyRoute
 							} catch (InterruptedException e) {
 								e.printStackTrace();
 							}
-							new Thread(new MovementThread(22, 0)).start();
+							new Thread(new MovementThread(20, 0)).start();
 						}
 					}
 					else
@@ -697,7 +697,7 @@ public class SurveyRoute
 			if( front == Direction.IN_BETWEEN )
 				return 1000;
 				
-			return (21 * (int) getDistanceFromBorder(front.getOppositeDirection()) + 550);
+			return (27 * (int) getDistanceFromBorder(front.getOppositeDirection()) );
 			
 		}
 		
@@ -747,7 +747,7 @@ public class SurveyRoute
 				int turnAngle = -1 * bearing;
 				int backOff = 1000;
 				
-				//Steering needs to be at least 40 to have some effect
+				//Steering needs to be at least 25 to have some effect
 				if( turnAngle <= -4 )
 				{
 					turnAngle  -= 25;
