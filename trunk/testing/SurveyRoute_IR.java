@@ -10,13 +10,13 @@ import testing.sensors.*;
 
 import java.util.*;
 
-public class SurveyRoute
+public class SurveyRoute_IR
 {
 	//Begin variable declarations
-	private static SideSensor leftSensor = new EV3UltrasonicSideSensor(SensorPort.S2);
+	private static SideSensor leftSensor = new EV3IRSideSensor(SensorPort.S2);
 	private static SideSensor frontSensor = new EV3IRSideSensor(SensorPort.S4);
 //	private static SideSensor rightSensor = new NXTUltrasonicSideSensor(SensorPort.S3);
-	private static SideSensor rightSensor = new EV3UltrasonicSideSensor(SensorPort.S3);
+	private static SideSensor rightSensor = new EV3IRSideSensor(SensorPort.S3);
 	private static ResettableGyroSensor sensor = new ResettableGyroSensor(SensorPort.S1);
 	private static SampleProvider gyro = sensor.getAngleMode();
 	private static SampleProvider rgyro = sensor.getRateMode();
@@ -508,9 +508,9 @@ public class SurveyRoute
 					if(front != Direction.IN_BETWEEN)
 					{
 						//Filter sensor readings
-						leftReading = movingAverage(leftValues, leftReading);
+						//leftReading = movingAverage(leftValues, leftReading);
 						//frontReading = movingAverage(frontValues, frontReading);
-						rightReading = movingAverage(rightValues, rightReading);
+						//rightReading = movingAverage(rightValues, rightReading);
 					}
 					else
 					{
@@ -518,9 +518,9 @@ public class SurveyRoute
 						frontValues.clear();
 						rightValues.clear();
 					}
-					leftWall = leftReading < 46;	//Maximum distance from left wall is 36
-					frontWall = frontReading < 22;	//Detect front wall only when close enough
-					rightWall = rightReading < 46;
+					leftWall = leftReading < 30;	//Maximum distance from left wall is 36
+					frontWall = frontReading < 20;	//Detect front wall only when close enough
+					rightWall = rightReading < 30;
 	
 					updateCurrentLoc();
 					
@@ -537,9 +537,9 @@ public class SurveyRoute
 							if(!isTooCloseToNSBorder() && currentCell.northWallState() == Cell.WallState.UNKNOWN) {//if too close to boundary, skip update
 								if(frontReading < 16)
 									currentCell.setNorth(Cell.WallState.REAL_WALL);
-								if(leftReading < 28)
+								if(leftReading < 20)
 									currentCell.setWest(Cell.WallState.REAL_WALL);
-								if(rightReading < 28)
+								if(rightReading < 20)
 									currentCell.setEast(Cell.WallState.REAL_WALL);
 							}
 							leftWall = currentCell.westWallExists(leftWall);
@@ -550,9 +550,9 @@ public class SurveyRoute
 							if(!isTooCloseToEWBorder() && currentCell.eastWallState() == Cell.WallState.UNKNOWN) {
 								if(frontReading < 16)
 									currentCell.setEast(Cell.WallState.REAL_WALL);
-								if(leftReading < 28)
+								if(leftReading < 20)
 									currentCell.setNorth(Cell.WallState.REAL_WALL);
-								if(rightReading < 28)
+								if(rightReading < 20)
 									currentCell.setSouth(Cell.WallState.REAL_WALL);
 							}
 							leftWall = currentCell.northWallExists(leftWall);
@@ -563,9 +563,9 @@ public class SurveyRoute
 							if(!isTooCloseToEWBorder() && currentCell.westWallState() == Cell.WallState.UNKNOWN) {
 								if(frontReading < 16)
 									currentCell.setWest(Cell.WallState.REAL_WALL);
-								if(leftReading < 28)
+								if(leftReading < 20)
 									currentCell.setSouth(Cell.WallState.REAL_WALL);
-								if(rightReading < 28)
+								if(rightReading < 20)
 									currentCell.setNorth(Cell.WallState.REAL_WALL);
 							}
 							leftWall = currentCell.southWallExists(leftWall);
@@ -576,9 +576,9 @@ public class SurveyRoute
 							if(!isTooCloseToNSBorder() && currentCell.southWallState() == Cell.WallState.UNKNOWN) {
 								if(frontReading < 16)
 									currentCell.setSouth(Cell.WallState.REAL_WALL);
-								if(leftReading < 28)
+								if(leftReading < 20)
 									currentCell.setEast(Cell.WallState.REAL_WALL);
-								if(rightReading < 28)
+								if(rightReading < 20)
 									currentCell.setWest(Cell.WallState.REAL_WALL);
 							}
 							leftWall = currentCell.eastWallExists(leftWall);
@@ -586,7 +586,7 @@ public class SurveyRoute
 							frontWall = currentCell.southWallExists(frontWall);
 							break;
 						//case IN_BETWEEN:
-						default:	//workaround warning
+						 	default:	//workaround warning
 							break;
 					}
 					
@@ -605,7 +605,7 @@ public class SurveyRoute
 						Sound.playTone(1050, 1000);
 						System.exit(0);
 					}
-					if(front != Direction.IN_BETWEEN && ( leftValues.size() > 2 ))
+					if(front != Direction.IN_BETWEEN )
 					{
 						if(isBacking) //if at a dead end, back up
 						{
@@ -730,15 +730,15 @@ public class SurveyRoute
 				
 				if(!isTurning && (offset <= ANGLE_ERROR_MARGIN || offset >= -ANGLE_ERROR_MARGIN)) //When going straight forward/back
 				{
-					if( rightReading < 14 )
+					if( rightReading < 16 )
 					{
-						effectiveOffset = (int) (1.5*(rightReading-14) );
+						effectiveOffset = (int) (1.25*(rightReading-16) );
 						if( isBacking ) effectiveOffset *= -1;
 //						System.out.println("-R" + rightReading + "\t" + offset);
 					}
-					else if( leftReading < 14 )
+					else if( leftReading < 16 )
 					{
-						effectiveOffset = (int) (1.5*(14-leftReading));
+						effectiveOffset = (int) (1.25*(16-leftReading));
 						if( isBacking ) effectiveOffset *= -1;
 //						System.out.println("-L" + leftReading + "\t" + offset);
 					}

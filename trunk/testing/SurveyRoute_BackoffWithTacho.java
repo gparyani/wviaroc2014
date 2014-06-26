@@ -10,7 +10,7 @@ import testing.sensors.*;
 
 import java.util.*;
 
-public class SurveyRoute
+public class SurveyRoute_BackoffWithTacho
 {
 	//Begin variable declarations
 	private static SideSensor leftSensor = new EV3UltrasonicSideSensor(SensorPort.S2);
@@ -509,7 +509,7 @@ public class SurveyRoute
 					{
 						//Filter sensor readings
 						leftReading = movingAverage(leftValues, leftReading);
-						//frontReading = movingAverage(frontValues, frontReading);
+						frontReading = movingAverage(frontValues, frontReading);
 						rightReading = movingAverage(rightValues, rightReading);
 					}
 					else
@@ -685,7 +685,7 @@ public class SurveyRoute
 	}
 		
 	private static class MovementThread implements java.lang.Runnable
-	{
+	{ 
 		MovementThread(int _power, float _targetReading)
 		{
 			power = _power;
@@ -695,9 +695,9 @@ public class SurveyRoute
 		private int getBackOffFromCoordinates()
 		{
 			if( front == Direction.IN_BETWEEN )
-				return 1000;
+				return 360;//31 cm
 				
-			return (27 * (int) getDistanceFromBorder(front.getOppositeDirection()) );
+			return (int) (getDistanceFromBorder(front.getOppositeDirection()) * 360.0 / (2.5 * 31 * 1.5));
 			
 		}
 		
