@@ -26,7 +26,7 @@ public class GoldRush {
 	private static volatile float leftReading, frontReading, rightReading, offset;
 	private static int power;
 	private static volatile float targetReading, currentReading, distance;
-	private static volatile boolean stalled, leftWall, frontWall, rightWall, isBacking, isTurning;
+	private static volatile boolean beaconTowardsRight,beaconTowardsLeft,beaconTowardsFront;
 	private static final double X_ORIGINAL_VALUE = 0.0, Y_ORIGINAL_VALUE = 20.0;
 	private static volatile double realX = 0, realY = 1;
 	private static volatile double x = X_ORIGINAL_VALUE, y = Y_ORIGINAL_VALUE; //Center of all sensors
@@ -77,6 +77,9 @@ public class GoldRush {
 		return data[0];
 	}
 	
+	private static boolean isValidReading(float bearing, float distance) {
+		return (bearing!=0.0f&&distance<100);
+	}
 	
 	/**
 	 * Controls the movements of the robot
@@ -100,12 +103,24 @@ public class GoldRush {
 				while(true)
 				{
 					boolean seenBeacon = false;
-					if (targetReading!=0.0f && distance>100) {//if the reading is valid 
+					if (beaconTowardsFront) {//if the reading is valid 
 						seenBeacon = true;
+						System.out.println("Found beacon towards:"+targetReading+" with distance:"+distance);
 						lastBearing = currentReading - targetReading;//lastBearing is the last known heading towards the beacon
+						if (distance < 30) {
+							System.out.println("Close to beacon");
+							goStraight(power);
+							for(int i = 0; i < 20; i++) {
+								Button.LEDPattern(i%2+1);
+								try {
+									Thread.sleep(100);
+								} catch (InterruptedException e) { }			
+							}
+							System.exit(0);
+						}
 					}
+					
 					offset = -targetReading;
-					System.out.println(offset);
 					bearing = offset / BEARING_TO_OFFSET_RATIO;
 					
 					if(bearing >= 4)
@@ -116,18 +131,14 @@ public class GoldRush {
 					{
 						bearing -= 25;
 					}
-					if (distance < 15) {
-						System.out.println("found");
-						for(int i = 0; i < 20; i++) {
-							Button.LEDPattern(i%2+1);
-							try {
-								Thread.sleep(200);
-							} catch (InterruptedException e) { }					}
-					}
+					
+					System.out.println("TargetReading:"+targetReading);
+					
 					if(isStalled()) {
 						if(!wasStalled) {
 							wasStalled = true;
-							goBackwards(power,90,1400);//back up and turn
+							System.out.println("Stalled and turned backwards");
+							goBackwards(power,90,900);//back up and turn
 						} else {
 							wasStalled = false;
 						}
@@ -143,15 +154,27 @@ public class GoldRush {
 		public void run() {
 			System.out.println("Beacon Bearing\tDistance to Beacon");
 			while (true) {
-				frontReading = frontSensor.getDistanceInCM();
-				leftReading = leftSensor.getDistanceInCM();
-				rightReading = rightSensor.getDistanceInCM();
-				
-				currentReading = getDataFromSensor();
-				targetReading = (float) (frontSensor.getBearingFromBeacon(1)*4.5);
+				frontReading = frontSensor.getBearingFromBeacon(1)*4.5f;
+				leftReading = leftSensor.getBearingFromBeacon(1)*4.5f;
+				rightReading = rightSensor.getBearingFromBeacon(1)*4.5f;
 				distance = frontSensor.getDistanceFromBeacon(1);
-				updateCurrentLoc();
-				System.out.println(targetReading+"\t"+distance);
+				
+				beaconTowardsLeft = isValidReading(leftReading,leftSensor.getDistanceFromBeacon(1));
+				beaconTowardsRight = isValidReading(rightReading,rightSensor.getDistanceFromBeacon(1));
+				beaconTowardsFront = isValidReading(frontReading,distance);
+				
+				if(beaconTowardsFront){
+					targetReading = frontReading;
+					System.out.println("Beacon forwards");
+				} else if(beaconTowardsRight) {
+					targetReading = rightReading+90;
+					System.out.println("Beacon to right");
+				} else if(beaconTowardsLeft) {
+					targetReading = leftReading-90;
+					System.out.println("Beacon to left");
+				}
+				currentReading = getDataFromSensor();
+
 			}
 		}
 	}
