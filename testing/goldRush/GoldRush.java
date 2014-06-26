@@ -12,6 +12,7 @@ import testing.sensors.EV3IRSideSensor;
 import testing.sensors.EV3UltrasonicSideSensor;
 import testing.sensors.SideSensor;
 import lejos.hardware.Button;
+import lejos.hardware.lcd.LCD;
 import lejos.hardware.port.SensorPort;
 import lejos.hardware.sensor.EV3IRSensor;
 import lejos.robotics.SampleProvider;
@@ -24,7 +25,7 @@ public class GoldRush {
 	private static SampleProvider gyro = sensor.getAngleMode(), rgyro = sensor.getRateMode();
 	private static volatile float leftReading, frontReading, rightReading, offset;
 	private static int power;
-	private static volatile float targetReading, currentReading;
+	private static volatile float targetReading, currentReading, distance;
 	private static volatile boolean stalled, leftWall, frontWall, rightWall, isBacking, isTurning;
 	private static final double X_ORIGINAL_VALUE = 0.0, Y_ORIGINAL_VALUE = 20.0;
 	private static volatile double realX = 0, realY = 1;
@@ -76,12 +77,6 @@ public class GoldRush {
 		return data[0];
 	}
 	
-	private static float getRateDataFromSensor()
-	{
-		float[] data = new float[1];	//an array is necessary to get the data
-		rgyro.fetchSample(data, 0);
-		return data[0];
-	}
 	
 	/**
 	 * Controls the movements of the robot
@@ -96,15 +91,22 @@ public class GoldRush {
 			}
 			
 			private static final float BEARING_TO_OFFSET_RATIO = 0.6f;
-			
+			private static float lastBearing = Float.NaN;
 			public void run()
 			{
+				float offset;
+				boolean wasStalled = false;
+				float bearing;
 				while(true)
 				{
-					currentReading = getDataFromSensor();
-					float offset = currentReading - targetReading;
+					boolean seenBeacon = false;
+					if (targetReading!=0.0f && distance>100) {//if the reading is valid 
+						seenBeacon = true;
+						lastBearing = currentReading - targetReading;//lastBearing is the last known heading towards the beacon
+					}
+					offset = -targetReading;
 					System.out.println(offset);
-					float bearing = offset / BEARING_TO_OFFSET_RATIO;
+					bearing = offset / BEARING_TO_OFFSET_RATIO;
 					
 					if(bearing >= 4)
 					{
@@ -114,20 +116,42 @@ public class GoldRush {
 					{
 						bearing -= 25;
 					}
-
-					if(Math.abs(offset) < ANGLE_ERROR_MARGIN)
-						goStraight(power);
+					if (distance < 15) {
+						System.out.println("found");
+						for(int i = 0; i < 20; i++) {
+							Button.LEDPattern(i%2+1);
+							try {
+								Thread.sleep(200);
+							} catch (InterruptedException e) { }					}
+					}
+					if(isStalled()) {
+						if(!wasStalled) {
+							wasStalled = true;
+							goBackwards(power,90,1400);//back up and turn
+						} else {
+							wasStalled = false;
+						}
+					} 
+					else if(Math.abs(offset) < ANGLE_ERROR_MARGIN)
+						goStraight(power);						
 					else
 						tiltTo(power, (int)(bearing));
 				}
 			}
 	}
-	private static class IRMonitorThread implements Runnable {
+	private static class MonitorThread implements Runnable {
 		public void run() {
+			System.out.println("Beacon Bearing\tDistance to Beacon");
 			while (true) {
-				currentReading = getDataFromSensor();
-				targetReading = frontSensor.getBearingFromBeacon(1);
+				frontReading = frontSensor.getDistanceInCM();
+				leftReading = leftSensor.getDistanceInCM();
+				rightReading = rightSensor.getDistanceInCM();
 				
+				currentReading = getDataFromSensor();
+				targetReading = (float) (frontSensor.getBearingFromBeacon(1)*4.5);
+				distance = frontSensor.getDistanceFromBeacon(1);
+				updateCurrentLoc();
+				System.out.println(targetReading+"\t"+distance);
 			}
 		}
 	}
@@ -137,19 +161,18 @@ public class GoldRush {
 			//Begin gyro reset procedure
 			sensor.reset();
 			Thread.sleep(1500);	//reset delay
-			getRateDataFromSensor();
 			getDataFromSensor();
 			Thread.sleep(4000);
 			//End gyro reset procedure
 		} catch (Exception e) {e.printStackTrace();}
 		Button.LEDPattern(1);	//solid green
-		new Thread(new IRMonitorThread()).start();
+		new Thread(new MonitorThread()).start();
 		try {
 			Thread.sleep(250);
 		} catch (InterruptedException e) {
 			e.printStackTrace(System.out);
 		}
-		new Thread(new MovementThread(10, 0)).start();
+		new Thread(new MovementThread(33, 0)).start();
 		while(true)
 		{
 			Button.waitForAnyPress();
