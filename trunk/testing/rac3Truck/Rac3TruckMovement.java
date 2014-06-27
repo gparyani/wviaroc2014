@@ -86,6 +86,22 @@ public class Rac3TruckMovement {
 		}
 	}
 	
+	public static void goBackwardsTacho(int power, int bearing, int time)
+	{
+		left.stop();
+		right.stop();
+		goBackwards(power, bearing);
+		int ticks = right.getTachoCount();
+		while(!isStalled()&&(Math.abs(ticks-right.getTachoCount())<=time)) {}
+	}
+	public static void goForwardsTacho(int power, int bearing, int time)
+	{
+		left.stop();
+		right.stop();
+		tiltTo(power, bearing);
+		int ticks = right.getTachoCount();
+		while(!isStalled()&&(Math.abs(ticks-right.getTachoCount())<=time)) {}
+	}
 	public static void goForwards(int power, int bearing, int time)
 	{
 		left.stop();

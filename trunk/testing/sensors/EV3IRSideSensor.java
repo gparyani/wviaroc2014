@@ -48,6 +48,7 @@ public class EV3IRSideSensor extends SideSensor
 		if(percentage > 50)
 			return Float.POSITIVE_INFINITY;
 		else
-			return (float) (0.0078 * percentage * percentage + 0.3047 * percentage + 2.9338);
+			return 1.65f * (float) (0.0078 * percentage * percentage + 0.3047 * percentage + 2.9338);
+//			return (float)(2E-05 * Math.pow(percentage, 4) - 0.0023 * Math.pow(percentage, 3) + 0.0739 * percentage * percentage - 0.193 * percentage + 2.9876);
 	}
 }

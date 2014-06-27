@@ -13,10 +13,10 @@ import java.util.*;
 public class SurveyRoute
 {
 	//Begin variable declarations
-	private static SideSensor leftSensor = new EV3UltrasonicSideSensor(SensorPort.S2);
+	private static SideSensor leftSensor = new EV3IRSideSensor(SensorPort.S2);
 	private static SideSensor frontSensor = new EV3IRSideSensor(SensorPort.S4);
 //	private static SideSensor rightSensor = new NXTUltrasonicSideSensor(SensorPort.S3);
-	private static SideSensor rightSensor = new EV3UltrasonicSideSensor(SensorPort.S3);
+	private static SideSensor rightSensor = new EV3IRSideSensor(SensorPort.S3);
 	private static ResettableGyroSensor sensor = new ResettableGyroSensor(SensorPort.S1);
 	private static SampleProvider gyro = sensor.getAngleMode();
 	private static SampleProvider rgyro = sensor.getRateMode();
@@ -266,7 +266,7 @@ public class SurveyRoute
 
 		new Thread(new MonitorThread()).start();
 		Thread.sleep(300);
-		new Thread(new MovementThread(20, 0)).start();
+		new Thread(new MovementThread(17, 0)).start();
 
 		//Check for button presses
 		new Thread(new Runnable() {
@@ -316,7 +316,7 @@ public class SurveyRoute
 							} catch (InterruptedException e) {
 								e.printStackTrace();
 							}
-							new Thread(new MovementThread(20, 0)).start();
+							new Thread(new MovementThread(17, 0)).start();
 						}
 					}
 					else
@@ -336,7 +336,7 @@ public class SurveyRoute
 		double dist = getDistanceFromBorder(Direction.SOUTH);
 
 //		if(isBacking && dist > 7 && dist < 20) dist-= 7; //Slight adjustment for moving back
-		return (dist > (CELL_WIDTH - 20) || dist < 20); //if too close to boundary, skip update
+		return (dist > (CELL_WIDTH - 10) || dist < 10); //if too close to boundary, skip update
 	}
 	
 	static boolean isTooCloseToEWBorder()	//Near east and west borders of a cell
@@ -344,7 +344,7 @@ public class SurveyRoute
 		double dist = getDistanceFromBorder(Direction.WEST);
 
 //		if(isBacking && dist > 7 && dist < 20) dist-= 7; //Slight adjustment for moving back
-		return (dist > (CELL_WIDTH - 20) || dist < 20); //if too close to boundary, skip update
+		return (dist > (CELL_WIDTH - 10) || dist < 10); //if too close to boundary, skip update
 	}
 	
 	synchronized static double getDistanceFromBorder(Direction border)
@@ -509,7 +509,7 @@ public class SurveyRoute
 					{
 						//Filter sensor readings
 						leftReading = movingAverage(leftValues, leftReading);
-						//frontReading = movingAverage(frontValues, frontReading);
+						frontReading = movingAverage(frontValues, frontReading);
 						rightReading = movingAverage(rightValues, rightReading);
 					}
 					else
@@ -518,9 +518,9 @@ public class SurveyRoute
 						frontValues.clear();
 						rightValues.clear();
 					}
-					leftWall = leftReading < 46;	//Maximum distance from left wall is 36
+					leftWall = leftReading < 42;	//Maximum distance from left wall is 36
 					frontWall = frontReading < 22;	//Detect front wall only when close enough
-					rightWall = rightReading < 46;
+					rightWall = rightReading < 42;
 	
 					updateCurrentLoc();
 					
@@ -605,7 +605,7 @@ public class SurveyRoute
 						Sound.playTone(1050, 1000);
 						System.exit(0);
 					}
-					if(front != Direction.IN_BETWEEN && ( leftValues.size() > 2 ))
+					if(front != Direction.IN_BETWEEN && ( leftValues.size() > 1)/* && !isTooCloseToEWBorder() && !isTooCloseToNSBorder()*/)
 					{
 						if(isBacking) //if at a dead end, back up
 						{
@@ -695,9 +695,12 @@ public class SurveyRoute
 		private int getBackOffFromCoordinates()
 		{
 			if( front == Direction.IN_BETWEEN )
-				return 1000;
+				return 360;
 				
-			return (27 * (int) getDistanceFromBorder(front.getOppositeDirection()) );
+			return (int) (getDistanceFromBorder(front.getOppositeDirection()) *360/(1.5*2.5*31));
+					
+			//return (25 * (int) getDistanceFromBorder(front.getOppositeDirection()))
+					/*+ ((front == Direction.WEST || front == Direction.EAST) ? 250 : 0);*/
 			
 		}
 		
@@ -730,22 +733,22 @@ public class SurveyRoute
 				
 				if(!isTurning && (offset <= ANGLE_ERROR_MARGIN || offset >= -ANGLE_ERROR_MARGIN)) //When going straight forward/back
 				{
-					if( rightReading < 14 )
+					if( rightReading < 18)
 					{
-						effectiveOffset = (int) (1.5*(rightReading-14) );
+						effectiveOffset = (int) (1.5*(rightReading-18) );
 						if( isBacking ) effectiveOffset *= -1;
 //						System.out.println("-R" + rightReading + "\t" + offset);
 					}
-					else if( leftReading < 14 )
+					else if( leftReading < 18)
 					{
-						effectiveOffset = (int) (1.5*(14-leftReading));
+						effectiveOffset = (int) (1.5*(18-leftReading));
 						if( isBacking ) effectiveOffset *= -1;
 //						System.out.println("-L" + leftReading + "\t" + offset);
 					}
 				}
 				int bearing = (int) (effectiveOffset/BEARING_TO_OFFSET_RATIO);
 				int turnAngle = -1 * bearing;
-				int backOff = 1000;
+				int backOff = 360;
 				
 				//Steering needs to be at least 25 to have some effect
 				if( turnAngle <= -4 )
@@ -764,8 +767,8 @@ public class SurveyRoute
 //					System.out.print("Stalled\t");
 					if( !isBacking ) {
 //						System.out.print("Forward&Back\t");
-						goBackwards(power - 5, bearing, backOff);	//we may stall either while backing or while proceeding, so...
-						goForwards( power-5, -bearing, backOff);	//...we go both ways
+						goBackwardsTacho(power , bearing, backOff);	//we may stall either while backing or while proceeding, so...
+						goForwards( power, -bearing, backOff);	//...we go both ways
 					}
 					else
 						isBacking = false;
@@ -780,7 +783,7 @@ public class SurveyRoute
 
 						alreadyWentBack = true;
 					}
-					goBackwards(power - 5, bearing);
+					goBackwards(power, bearing);
 //					System.out.print("isBacking\n");
 					continue;
 				}
@@ -807,7 +810,7 @@ public class SurveyRoute
 						bearing = (int) (offset/BEARING_TO_OFFSET_RATIO);
 						turnAngle = -1 * bearing;
 						System.out.println( "Turn : " + turnAngle + "Backoff\t" + backOff + "\t" + "Bearing: " + bearing);
-						goBackwards(power - 5, bearing, backOff);
+						goBackwardsTacho(power, bearing, backOff);//TODO
 						alreadyWentBackTurn = true;
 					}
 		//			System.out.print("Big Offset \t");
