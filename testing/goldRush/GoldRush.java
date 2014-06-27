@@ -110,13 +110,7 @@ public class GoldRush {
 						if (distance < 30) {
 							System.out.println("Close to beacon");
 							goStraight(power);
-							for(int i = 0; i < 20; i++) {
-								Button.LEDPattern(i%2+1);
-								try {
-									Thread.sleep(100);
-								} catch (InterruptedException e) { }			
-							}
-							System.exit(0);
+							
 						}
 					}
 					
@@ -138,7 +132,17 @@ public class GoldRush {
 						if(!wasStalled) {
 							wasStalled = true;
 							System.out.println("Stalled and turned backwards");
-							goBackwards(power,90,900);//back up and turn
+							int pivot;
+							if (beaconTowardsFront) {
+								pivot = 0;
+							} else if(beaconTowardsLeft) {
+								pivot = -90;
+							} else if (beaconTowardsRight) {
+								pivot = 90;
+							} else {
+								pivot = 60;
+							}
+							goBackwards(power,pivot,900);//back up and turn
 						} else {
 							wasStalled = false;
 						}
@@ -172,6 +176,8 @@ public class GoldRush {
 				} else if(beaconTowardsLeft) {
 					targetReading = leftReading-90;
 					System.out.println("Beacon to left");
+				} else {
+					targetReading = 0;
 				}
 				currentReading = getDataFromSensor();
 
@@ -195,7 +201,7 @@ public class GoldRush {
 		} catch (InterruptedException e) {
 			e.printStackTrace(System.out);
 		}
-		new Thread(new MovementThread(33, 0)).start();
+		new Thread(new MovementThread(20, 0)).start();
 		while(true)
 		{
 			Button.waitForAnyPress();
