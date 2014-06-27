@@ -653,7 +653,7 @@ public class SurveyRoute
 					if(isTurning && offset >= -ANGLE_ERROR_MARGIN && offset <= ANGLE_ERROR_MARGIN)	//detect when the turn gets completed by the movement thread
 					{
 						if( currentCell != turningFrom && front != Direction.IN_BETWEEN 
-								 && (getDistanceFromBorder(front.getOppositeDirection()) > 3)  ) {
+								 && (getDistanceFromBorder(front.getOppositeDirection()) > 10)  ) {
 							switch(front) {
 							case NORTH:
 								turningFrom.setNorth(Cell.WallState.NO_WALL);
