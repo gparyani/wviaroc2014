@@ -612,7 +612,7 @@ public class SurveyRoute
 						Sound.playTone(1050, 1000);
 						System.exit(0);
 					}
-					if(front != Direction.IN_BETWEEN && ( leftValues.size() > 1)/* && !isTooCloseToEWBorder() && !isTooCloseToNSBorder()*/)
+					if(front != Direction.IN_BETWEEN && ( currentState == State.SOLUTION_RUN || leftValues.size() > 1) /* && !isTooCloseToEWBorder() && !isTooCloseToNSBorder()*/)
 					{
 						if(isBacking) //if at a dead end, back up
 						{
@@ -658,10 +658,10 @@ public class SurveyRoute
 					currentReading = getDataFromSensor();
 					offset = currentReading - targetReading;	//recalculate all variables for next iteration
 					if(isTurning && offset >= -ANGLE_ERROR_MARGIN && offset <= ANGLE_ERROR_MARGIN
-							&& currentCell != turningFrom )	//detect when the turn gets completed by the movement thread
+							 )	//detect when the turn gets completed by the movement thread
 					{
-						if( currentCell != turningFrom && front != Direction.IN_BETWEEN 
-								 && (getDistanceFromBorder(front.getOppositeDirection()) > 10)  ) {
+						if( currentState == State.MAPPING_RUN && currentCell != turningFrom && front != Direction.IN_BETWEEN 
+								&& currentCell != turningFrom && (getDistanceFromBorder(front.getOppositeDirection()) > 10)  ) {
 							switch(front) {
 							case NORTH:
 								turningFrom.setNorth(Cell.WallState.NO_WALL);
@@ -712,7 +712,7 @@ public class SurveyRoute
 			
 		}
 		
-		private static final double BEARING_TO_OFFSET_RATIO = 0.6;
+		private static final double BEARING_TO_OFFSET_RATIO = 0.75;
 		
 		public void run()
 		{
