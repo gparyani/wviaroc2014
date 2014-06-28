@@ -657,7 +657,8 @@ public class SurveyRoute
 					}
 					currentReading = getDataFromSensor();
 					offset = currentReading - targetReading;	//recalculate all variables for next iteration
-					if(isTurning && offset >= -ANGLE_ERROR_MARGIN && offset <= ANGLE_ERROR_MARGIN)	//detect when the turn gets completed by the movement thread
+					if(isTurning && offset >= -ANGLE_ERROR_MARGIN && offset <= ANGLE_ERROR_MARGIN
+							&& currentCell != turningFrom )	//detect when the turn gets completed by the movement thread
 					{
 						if( currentCell != turningFrom && front != Direction.IN_BETWEEN 
 								 && (getDistanceFromBorder(front.getOppositeDirection()) > 10)  ) {
@@ -774,6 +775,7 @@ public class SurveyRoute
 //					System.out.print("Stalled\t");
 					if( !isBacking ) {
 //						System.out.print("Forward&Back\t");
+						bearing = (bearing < 0) ? (bearing - 25) : (bearing+25); //stuck in loop otherwise
 						goBackwardsTacho(power , bearing, backOff);	//we may stall either while backing or while proceeding, so...
 						goForwards( power, -bearing, backOff);	//...we go both ways
 					}
