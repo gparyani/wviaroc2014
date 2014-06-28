@@ -1,4 +1,11 @@
 package testing;
+//TODO
+/*
+ * Robert's ideas
+ * -If stalling when entering cell, add real wall
+ * -Only consider IR readings when not attempting to reaalign
+ * -Only make turns/backoffs from middle of cell to other middle of cell in order to stay in center
+ */
 
 import static testing.rac3Truck.Rac3TruckMovement.*;
 import lejos.hardware.Button;
@@ -266,7 +273,7 @@ public class SurveyRoute
 
 		new Thread(new MonitorThread()).start();
 		Thread.sleep(300);
-		new Thread(new MovementThread(17, 0)).start();
+		new Thread(new MovementThread(15, 0)).start();
 
 		//Check for button presses
 		new Thread(new Runnable() {
@@ -316,7 +323,7 @@ public class SurveyRoute
 							} catch (InterruptedException e) {
 								e.printStackTrace();
 							}
-							new Thread(new MovementThread(17, 0)).start();
+							new Thread(new MovementThread(15, 0)).start();
 						}
 					}
 					else
@@ -336,7 +343,7 @@ public class SurveyRoute
 		double dist = getDistanceFromBorder(Direction.SOUTH);
 
 //		if(isBacking && dist > 7 && dist < 20) dist-= 7; //Slight adjustment for moving back
-		return (dist > (CELL_WIDTH - 10) || dist < 10); //if too close to boundary, skip update
+		return (dist > (CELL_WIDTH - 20) || dist < 20); //if too close to boundary, skip update
 	}
 	
 	static boolean isTooCloseToEWBorder()	//Near east and west borders of a cell
@@ -344,7 +351,7 @@ public class SurveyRoute
 		double dist = getDistanceFromBorder(Direction.WEST);
 
 //		if(isBacking && dist > 7 && dist < 20) dist-= 7; //Slight adjustment for moving back
-		return (dist > (CELL_WIDTH - 10) || dist < 10); //if too close to boundary, skip update
+		return (dist > (CELL_WIDTH - 20) || dist < 20); //if too close to boundary, skip update
 	}
 	
 	synchronized static double getDistanceFromBorder(Direction border)
@@ -695,9 +702,9 @@ public class SurveyRoute
 		private int getBackOffFromCoordinates()
 		{
 			if( front == Direction.IN_BETWEEN )
-				return 360;
+				return 120;
 				
-			return (int) (getDistanceFromBorder(front.getOppositeDirection()) *360/(1.5*2.5*31));
+			return (int) (getDistanceFromBorder(front.getOppositeDirection()) *360/(1.6*2.5*31));
 					
 			//return (25 * (int) getDistanceFromBorder(front.getOppositeDirection()))
 					/*+ ((front == Direction.WEST || front == Direction.EAST) ? 250 : 0);*/
@@ -731,7 +738,7 @@ public class SurveyRoute
 //				System.out.print("Latch T = " + (System.currentTimeMillis() - currentTime) + "\t Steer = " + Rac3TruckSteering.getTachoCount()
 //						+ "\t offset = " + offset + "\t");	
 				
-				if(!isTurning && (offset <= ANGLE_ERROR_MARGIN || offset >= -ANGLE_ERROR_MARGIN)) //When going straight forward/back
+				if(!isTurning && !stalled && (offset <= ANGLE_ERROR_MARGIN || offset >= -ANGLE_ERROR_MARGIN)) //When going straight forward/back
 				{
 					if( rightReading < 18)
 					{
@@ -748,7 +755,7 @@ public class SurveyRoute
 				}
 				int bearing = (int) (effectiveOffset/BEARING_TO_OFFSET_RATIO);
 				int turnAngle = -1 * bearing;
-				int backOff = 360;
+				int backOff = 120;
 				
 				//Steering needs to be at least 25 to have some effect
 				if( turnAngle <= -4 )
