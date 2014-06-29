@@ -43,12 +43,17 @@ public class EV3IRSideSensor extends SideSensor
 		return calibrateIRDistance(data[0]);
 	}
 	
-	private float calibrateIRDistance(float percentage)
+	private float calibrateIRDistance(float x)
 	{
-		if(percentage > 50)
+		if(x > 80)
 			return Float.POSITIVE_INFINITY;
 		else
-			return 1.65f * (float) (0.0078 * percentage * percentage + 0.3047 * percentage + 2.9338);
+			return ((x < 1) ? 2f : 
+					(0.0002f*x*x*x - 0.0116f*x*x + 0.6458f*x + 3.856f));
+			
+//			return ((percentage == 1) ? 2f : (0.0087f * percentage * percentage + 0.3f * percentage + 4.74f));
+//			return 1.25f * (float) (0.0078 * percentage * percentage + 0.3047 * percentage + 2.9338);
 //			return (float)(2E-05 * Math.pow(percentage, 4) - 0.0023 * Math.pow(percentage, 3) + 0.0739 * percentage * percentage - 0.193 * percentage + 2.9876);
+//			return ((percentage == 1) ? 2.0f : (0.5804f * percentage + 3.6804f));
 	}
 }
