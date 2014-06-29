@@ -3,7 +3,7 @@ package testing;
 /*
  * Robert's ideas
  * -If stalling when entering cell, add real wall
- * -Only consider IR readings when not attempting to reaalign
+ * -Only consider IR readings when not attempting to realign
  * -Only make turns/backoffs from middle of cell to other middle of cell in order to stay in center
  */
 
@@ -109,6 +109,40 @@ public class SurveyRoute
 			}
 			return this;	//IN_BETWEEN's opposite direction is also IN_BETWEEN; compiler throws error if in switch statement itself
 		}
+		
+		Direction getLeftDirection()
+		{
+			switch(this) {
+			case NORTH:
+				return WEST;
+			case EAST:
+				return NORTH;
+			case SOUTH:
+				return EAST;
+			case WEST:
+				return SOUTH;
+			default:
+				break;
+			}
+			return this;
+		}
+		
+		Direction getRightDirection()
+		{
+			switch(this) {
+			case NORTH:
+				return EAST;
+			case EAST:
+				return SOUTH;
+			case SOUTH:
+				return WEST;
+			case WEST:
+				return NORTH;
+			default:
+				break;
+			}
+			return this;
+		}
 	}
 	
 	/**
@@ -126,10 +160,28 @@ public class SurveyRoute
 			UNKNOWN, NO_WALL, VIRTUAL_WALL, REAL_WALL
 		}
 		
+		
 		Cell(int x, int y)
 		{
 			this.xPos = x;
 			this.yPos = y;
+		}
+		
+		Cell getCellFromDirection(Direction dir)
+		{
+			switch(dir) {
+			case NORTH:
+				return getCell(xPos, yPos + 1);
+			case EAST:
+				return getCell(xPos + 1, yPos);
+			case SOUTH:
+				return getCell(xPos, yPos - 1);
+			case WEST:
+				return getCell(xPos - 1, yPos);
+			default:
+				break;
+			}
+			throw new IllegalArgumentException();
 		}
 
 		int getX() {
@@ -258,10 +310,12 @@ public class SurveyRoute
 	public static void main(String[] args) throws Throwable
 	{
 		System.setErr(System.out);
-		Button.LEDPattern(2);	//turn button backlight red
+		Button.LEDPattern(4);	//turn button backlight blinking green
 
 //		sensor.hardReset();
-		
+		Button.waitForAnyPress();
+		Button.LEDPattern(2);	//solid red
+		Thread.sleep(750);
 		calibrateGyro();
 		
 		Rac3TruckSteering.reset();
@@ -269,7 +323,7 @@ public class SurveyRoute
 
 		System.out.println("Program starting.");
 		currentState = State.MAPPING_RUN;
-		//Button.waitForAnyPress();
+
 
 		new Thread(new MonitorThread()).start();
 		Thread.sleep(300);
@@ -496,7 +550,7 @@ public class SurveyRoute
 			return sum / sampleSet.size();
 		}
 
-		Cell turningFrom = null;
+		Cell turningFrom = null, turningTo = null;
 		public void run()
 		{
 			try {
@@ -525,12 +579,24 @@ public class SurveyRoute
 						frontValues.clear();
 						rightValues.clear();
 					}
-					leftWall = leftReading < 42;	//Maximum distance from left wall is 36
-					frontWall = frontReading < 22;	//Detect front wall only when close enough
-					rightWall = rightReading < 42;
+//					leftWall = leftReading < 42;	//Maximum distance from left wall is 36
+//					frontWall = frontReading < 22;	//Detect front wall only when close enough
+//					rightWall = rightReading < 42;
 	
 					updateCurrentLoc();
+					double wdist = getDistanceFromBorder(Direction.WEST),
+						   edist = getDistanceFromBorder(Direction.EAST),
+						   ndist = getDistanceFromBorder(Direction.NORTH),
+						   sdist = getDistanceFromBorder(Direction.SOUTH);
 					
+					float leeway = (CELL_WIDTH / 2) + 10;
+					
+					wdist = wdist < leeway ? leeway : wdist;
+					edist = edist < leeway ? leeway : edist;
+					ndist = ndist < leeway ? leeway : ndist;
+					sdist = sdist < leeway ? leeway : sdist;
+					
+					System.out.println( wdist + " " + leftValues.size() );
 					//calculate the grid coordinates of the current cell
 					int xCoordinate = (x > 0) ? (int)((x + (CELL_WIDTH / 2)) / CELL_WIDTH) : (int)((x - (CELL_WIDTH / 2)) / CELL_WIDTH),
 						yCoordinate = (int)(y / CELL_WIDTH);
@@ -541,7 +607,8 @@ public class SurveyRoute
 					switch(front)
 					{
 						case NORTH:
-							if(!isTooCloseToNSBorder() && currentCell.northWallState() == Cell.WallState.UNKNOWN) {//if too close to boundary, skip update
+
+							if((ndist > 20 && sdist > 20)  && currentCell.northWallState() == Cell.WallState.UNKNOWN) {//if too close to boundary, skip update
 								if(frontReading < 16)
 									currentCell.setNorth(Cell.WallState.REAL_WALL);
 								if(leftReading < 28)
@@ -549,12 +616,12 @@ public class SurveyRoute
 								if(rightReading < 28)
 									currentCell.setEast(Cell.WallState.REAL_WALL);
 							}
-							leftWall = currentCell.westWallExists(leftWall);
-							rightWall = currentCell.eastWallExists(rightWall);
-							frontWall = currentCell.northWallExists(frontWall);
+							leftWall = currentCell.westWallExists(leftReading < wdist);
+							rightWall = currentCell.eastWallExists(rightReading < edist);
+							frontWall = currentCell.northWallExists(frontReading < ndist);
 							break;
 						case EAST:
-							if(!isTooCloseToEWBorder() && currentCell.eastWallState() == Cell.WallState.UNKNOWN) {
+							if((edist > 20 && wdist > 20) && currentCell.eastWallState() == Cell.WallState.UNKNOWN) {
 								if(frontReading < 16)
 									currentCell.setEast(Cell.WallState.REAL_WALL);
 								if(leftReading < 28)
@@ -562,12 +629,12 @@ public class SurveyRoute
 								if(rightReading < 28)
 									currentCell.setSouth(Cell.WallState.REAL_WALL);
 							}
-							leftWall = currentCell.northWallExists(leftWall);
-							rightWall = currentCell.southWallExists(rightWall);
-							frontWall = currentCell.eastWallExists(frontWall);
+							leftWall = currentCell.northWallExists(leftReading < ndist);
+							rightWall = currentCell.southWallExists(rightReading < sdist);
+							frontWall = currentCell.eastWallExists(frontReading < edist);
 							break;
 						case WEST:
-							if(!isTooCloseToEWBorder() && currentCell.westWallState() == Cell.WallState.UNKNOWN) {
+							if((edist > 20 && wdist > 20) && currentCell.westWallState() == Cell.WallState.UNKNOWN) {
 								if(frontReading < 16)
 									currentCell.setWest(Cell.WallState.REAL_WALL);
 								if(leftReading < 28)
@@ -575,12 +642,12 @@ public class SurveyRoute
 								if(rightReading < 28)
 									currentCell.setNorth(Cell.WallState.REAL_WALL);
 							}
-							leftWall = currentCell.southWallExists(leftWall);
-							rightWall = currentCell.northWallExists(rightWall);
-							frontWall = currentCell.westWallExists(frontWall);
+							leftWall = currentCell.southWallExists(leftReading < sdist);
+							rightWall = currentCell.northWallExists(rightReading < ndist);
+							frontWall = currentCell.westWallExists(frontReading < wdist);
 							break;
 						case SOUTH:
-							if(!isTooCloseToNSBorder() && currentCell.southWallState() == Cell.WallState.UNKNOWN) {
+							if((ndist > 20 && sdist > 20) && currentCell.southWallState() == Cell.WallState.UNKNOWN) {
 								if(frontReading < 16)
 									currentCell.setSouth(Cell.WallState.REAL_WALL);
 								if(leftReading < 28)
@@ -588,9 +655,9 @@ public class SurveyRoute
 								if(rightReading < 28)
 									currentCell.setWest(Cell.WallState.REAL_WALL);
 							}
-							leftWall = currentCell.eastWallExists(leftWall);
-							rightWall = currentCell.westWallExists(rightWall);
-							frontWall = currentCell.southWallExists(frontWall);
+							leftWall = currentCell.eastWallExists(leftReading < edist);
+							rightWall = currentCell.westWallExists(rightReading < wdist);
+							frontWall = currentCell.southWallExists(frontReading <sdist);
 							break;
 						//case IN_BETWEEN:
 						default:	//workaround warning
@@ -599,7 +666,6 @@ public class SurveyRoute
 					
 					
 					//Navigation logic
-					
 					if(currentState == State.SOLUTION_RUN && maze.getLast().equals(currentCell))
 					{
 						stopTruck();
@@ -612,7 +678,7 @@ public class SurveyRoute
 						Sound.playTone(1050, 1000);
 						System.exit(0);
 					}
-					if(front != Direction.IN_BETWEEN && ( currentState == State.SOLUTION_RUN || leftValues.size() > 1) /* && !isTooCloseToEWBorder() && !isTooCloseToNSBorder()*/)
+					if(front != Direction.IN_BETWEEN /* && ( currentState == State.SOLUTION_RUN || leftValues.size() > 1 )  && !isTooCloseToEWBorder() && !isTooCloseToNSBorder()*/)
 					{
 						if(isBacking) //if at a dead end, back up
 						{
@@ -622,6 +688,7 @@ public class SurveyRoute
 								System.out.println("BACKRIGHT:\t" + currentCell);
 								isTurning = true;
 								turningFrom = currentCell;
+								turningTo = currentCell.getCellFromDirection(front.getRightDirection());
 		//						rwLastRead = tachoCount;
 								targetReading -= 90;	//causes movement thread to turn robot right
 								isBacking = false;
@@ -633,6 +700,8 @@ public class SurveyRoute
 							{
 								System.out.println("LEFT:\t" + currentCell);
 								isTurning = true;
+								turningFrom = currentCell;
+								turningTo = currentCell.getCellFromDirection(front.getLeftDirection());
 		//						lwLastRead = tachoCount;
 								targetReading += 90;	//turn left
 							}
@@ -640,6 +709,8 @@ public class SurveyRoute
 							{
 								System.out.println("RIGHT:\t" + currentCell);
 								isTurning = true;
+								turningFrom = currentCell;
+								turningTo = currentCell.getCellFromDirection(front.getRightDirection());
 		//						rwLastRead = tachoCount;
 								targetReading -= 90;
 							}
@@ -650,16 +721,36 @@ public class SurveyRoute
 								isBacking = true;
 		//						targetReading -= 180;
 							}
-							
-							if( isTurning )
-								turningFrom = currentCell;
 						}
 					}
 					currentReading = getDataFromSensor();
 					offset = currentReading - targetReading;	//recalculate all variables for next iteration
-					if(isTurning && offset >= -ANGLE_ERROR_MARGIN && offset <= ANGLE_ERROR_MARGIN
-							 )	//detect when the turn gets completed by the movement thread
+					front = Direction.getDirectionFromGyro((int)currentReading);
+					if(isTurning && offset >= -ANGLE_ERROR_MARGIN && offset <= ANGLE_ERROR_MARGIN)	//detect when the turn gets completed by the movement thread
 					{
+						if(stalled || (currentCell.equals(turningTo) 
+								&& (getDistanceFromBorder(front.getOppositeDirection()) > 10))
+								)
+							isTurning = false;
+						
+						if(stalled )
+						{
+							switch(front) {
+							case NORTH:
+								currentCell.setNorth(Cell.WallState.REAL_WALL);
+								break;
+							case EAST:
+								currentCell.setEast(Cell.WallState.REAL_WALL);
+								break;
+							case WEST:
+								currentCell.setWest(Cell.WallState.REAL_WALL);
+								break;
+							case SOUTH:
+								currentCell.setSouth(Cell.WallState.REAL_WALL);
+								break;
+							}
+						}
+						
 						if( currentState == State.MAPPING_RUN && currentCell != turningFrom && front != Direction.IN_BETWEEN 
 								&& currentCell != turningFrom && (getDistanceFromBorder(front.getOppositeDirection()) > 10)  ) {
 							switch(front) {
@@ -682,7 +773,6 @@ public class SurveyRoute
 							default:	//workaround compiler warning
 								break;
 							}
-							isTurning = false;
 						}
 					}
 					System.out.println("Monitor\t" + "offset\t" + offset + "\t" + leftReading + "\t" + frontReading +
@@ -705,14 +795,14 @@ public class SurveyRoute
 			if( front == Direction.IN_BETWEEN )
 				return 120;
 				
-			return (int) (getDistanceFromBorder(front.getOppositeDirection()) *360/(1.6*2.5*31));
+			return (int) (getDistanceFromBorder(front.getOppositeDirection()) *360/(1.5*2.5*31));
 					
 			//return (25 * (int) getDistanceFromBorder(front.getOppositeDirection()))
 					/*+ ((front == Direction.WEST || front == Direction.EAST) ? 250 : 0);*/
 			
 		}
 		
-		private static final double BEARING_TO_OFFSET_RATIO = 0.75;
+		private static final double BEARING_TO_OFFSET_RATIO = 0.65;
 		
 		public void run()
 		{
@@ -743,13 +833,13 @@ public class SurveyRoute
 				{
 					if( rightReading < 18)
 					{
-						effectiveOffset = (int) (1.5*(rightReading-18) );
+						effectiveOffset = (int) (1.4*(rightReading-18) );
 						if( isBacking ) effectiveOffset *= -1;
 //						System.out.println("-R" + rightReading + "\t" + offset);
 					}
 					else if( leftReading < 18)
 					{
-						effectiveOffset = (int) (1.5*(18-leftReading));
+						effectiveOffset = (int) (1.4*(18-leftReading));
 						if( isBacking ) effectiveOffset *= -1;
 //						System.out.println("-L" + leftReading + "\t" + offset);
 					}
