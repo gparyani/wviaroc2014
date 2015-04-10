@@ -20,10 +20,10 @@ import java.util.*;
 public class SurveyRoute
 {
 	//Begin variable declarations
-	private static SideSensor leftSensor = new EV3IRSideSensor(SensorPort.S2);
+	private static SideSensor leftSensor;	//initialized in static block
 	private static SideSensor frontSensor = new EV3IRSideSensor(SensorPort.S4);
 //	private static SideSensor rightSensor = new NXTUltrasonicSideSensor(SensorPort.S3);
-	private static SideSensor rightSensor = new EV3IRSideSensor(SensorPort.S3);
+	private static SideSensor rightSensor;	//initialized in static block
 	private static ResettableGyroSensor sensor = new ResettableGyroSensor(SensorPort.S1);
 	private static SampleProvider gyro = sensor.getAngleMode();
 	private static SampleProvider rgyro = sensor.getRateMode();
@@ -43,6 +43,13 @@ public class SurveyRoute
 	private static volatile State currentState = State.CALIBRATING;
 //	private static volatile int xCoordinate, yCoordinate;
 	//End variable declarations
+	
+	static
+	{
+		ArduinoSideSensors sensorSet = new ArduinoSideSensors(SensorPort.S2, 4);
+		leftSensor = sensorSet.getLeftSideSensor();
+		rightSensor = sensorSet.getRightSideSensor();
+	}
 	
 	private static synchronized float getDataFromSensor()
 	{
