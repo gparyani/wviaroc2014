@@ -12,6 +12,7 @@ import lejos.hardware.Button;
 import lejos.hardware.Sound;
 import lejos.hardware.port.SensorPort;
 import lejos.robotics.SampleProvider;
+import testing.dragRace.ResettableGyroSensor;
 import testing.rac3Truck.Rac3TruckSteering;
 import testing.sensors.*;
 
@@ -25,9 +26,9 @@ public class SurveyRoute
 	private static SideSensor frontSensor = new EV3IRSideSensor(SensorPort.S4);
 //	private static SideSensor rightSensor = new NXTUltrasonicSideSensor(SensorPort.S3);
 	private static SideSensor rightSensor;	//initialized in static block
-	private static ResettableGyroSensor sensor = new ResettableGyroSensor(SensorPort.S1);
-	private static SampleProvider gyro = sensor.getAngleMode();
-	private static SampleProvider rgyro = sensor.getRateMode();
+	private static ResettableGyroSensor sensor/* = new ResettableGyroSensor(SensorPort.S1)*/;
+	private static SampleProvider gyro/* = sensor.getAngleMode()*/;
+	private static SampleProvider rgyro/* = sensor.getRateMode()*/;
 	private static Direction front;
 	private static volatile float leftReading, frontReading, rightReading, offset;
 	private static int power;
@@ -56,7 +57,7 @@ public class SurveyRoute
 	{
 		float[] data = new float[1];	//an array is necessary to get the data
 		gyro.fetchSample(data, 0);
-		return data[0];
+		return -1 * data[0];
 	}
 	
 	private static float getRateDataFromSensor()
@@ -325,6 +326,9 @@ public class SurveyRoute
 		Button.waitForAnyPress();
 		Button.LEDPattern(2);	//solid red
 		Thread.sleep(750);
+		sensor = new ResettableGyroSensor(SensorPort.S1);
+		gyro = sensor.getAngleMode();
+		rgyro = sensor.getRateMode();
 		calibrateGyro();
 		
 		Rac3TruckSteering.reset();
