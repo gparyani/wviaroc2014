@@ -390,7 +390,10 @@ public class SurveyRoute
 						}
 					}
 					else
+					{
+						sensor.close();
 						System.exit(0);
+					}
 				}
 			}
 		}).start();
@@ -685,6 +688,7 @@ public class SurveyRoute
 							e.printStackTrace();
 						}
 						Sound.playTone(1050, 1000);
+						sensor.close();
 						System.exit(0);
 					}
 					if(front != Direction.IN_BETWEEN /* && ( currentState == State.SOLUTION_RUN || leftValues.size() > 1 )  && !isTooCloseToEWBorder() && !isTooCloseToNSBorder()*/)
