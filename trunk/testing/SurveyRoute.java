@@ -306,6 +306,11 @@ public class SurveyRoute
 		try {
 			//Begin gyro reset procedure
 			Thread.sleep(750);	//allow user enough time to let go of robot
+			if(sensor != null)
+				sensor.close();
+			sensor = new ResettableGyroSensor(SensorPort.S1);
+			gyro = sensor.getAngleMode();
+			rgyro = sensor.getRateMode();
 			sensor.reset();
 			Thread.sleep(1500);	//reset delay
 			getRateDataFromSensor();
@@ -325,10 +330,6 @@ public class SurveyRoute
 //		sensor.hardReset();
 		Button.waitForAnyPress();
 		Button.LEDPattern(2);	//solid red
-		Thread.sleep(750);
-		sensor = new ResettableGyroSensor(SensorPort.S1);
-		gyro = sensor.getAngleMode();
-		rgyro = sensor.getRateMode();
 		calibrateGyro();
 		
 		Rac3TruckSteering.reset();
