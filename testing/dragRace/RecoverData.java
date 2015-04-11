@@ -50,9 +50,9 @@ public class RecoverData {
 		//Begin gyro reset procedure
 		sensor.reset();
 		Thread.sleep(1500);	//reset delay
-		getRateDataFromSensor();
-		getDataFromSensor();
-		Thread.sleep(4000);
+//		getRateDataFromSensor();
+//		getDataFromSensor();
+//		Thread.sleep(4000);
 		//End gyro reset procedure
 		
 		Rac3TruckSteering.reset();

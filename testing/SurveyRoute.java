@@ -305,9 +305,9 @@ public class SurveyRoute
 			//Begin gyro reset procedure
 			sensor.reset();
 			Thread.sleep(1500);	//reset delay
-			getRateDataFromSensor();
-			getDataFromSensor();
-			Thread.sleep(4000);
+//			getRateDataFromSensor();
+//			getDataFromSensor();
+//			Thread.sleep(4000);
 			//End gyro reset procedure
 		} catch (Exception e) {e.printStackTrace();}
 		Button.LEDPattern(1);	//solid green
