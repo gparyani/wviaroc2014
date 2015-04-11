@@ -9,9 +9,9 @@ import testing.sensors.*;
 import java.util.*;
 import java.util.concurrent.*;
 public class RecoverData {
-	private static ResettableGyroSensor sensor = new ResettableGyroSensor(SensorPort.S1);
-	private static SampleProvider gyro = sensor.getAngleMode();
-	private static SampleProvider rgyro = sensor.getRateMode();
+	private static ResettableGyroSensor sensor/* = new ResettableGyroSensor(SensorPort.S1)*/;
+	private static SampleProvider gyro/* = sensor.getAngleMode()*/;
+	private static SampleProvider rgyro/* = sensor.getRateMode()*/;
 	private static volatile float offset;
 	private static int power;
 	private static volatile float targetReading, currentReading;
@@ -25,7 +25,7 @@ public class RecoverData {
 	{
 		float[] data = new float[1];	//an array is necessary to get the data
 		gyro.fetchSample(data, 0);
-		return data[0];
+		return -1 * data[0];
 	}
 	
 	private static float getRateDataFromSensor()
@@ -48,6 +48,9 @@ public class RecoverData {
 //			sensor.hardReset();
 		
 		//Begin gyro reset procedure
+		sensor = new ResettableGyroSensor(SensorPort.S1);
+		gyro = sensor.getAngleMode();
+		rgyro = sensor.getRateMode();
 		Thread.sleep(750);	//allow user enough time to let go of robot
 		sensor.reset();
 		Thread.sleep(1500);	//reset delay
