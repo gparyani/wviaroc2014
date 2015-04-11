@@ -13,7 +13,7 @@ public class NXTUltrasonicSideSensor extends SideSensor
 	{
 		sensor = new NXTUltrasonicSensor(p);
 		sensor.enable();
-		provider = sensor.getContinuousMode();
+		provider = sensor.getDistanceMode();
 	}
 
 	@Override
