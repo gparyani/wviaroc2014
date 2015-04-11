@@ -105,6 +105,7 @@ public class RecoverData {
 				if(stalled)
 				{
 //						System.out.print("Stalled\t");
+					sensor.close();
 					System.exit(0);
 				}
 				
