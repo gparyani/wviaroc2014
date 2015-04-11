@@ -48,11 +48,12 @@ public class RecoverData {
 //			sensor.hardReset();
 		
 		//Begin gyro reset procedure
+		Thread.sleep(750);	//allow user enough time to let go of robot
 		sensor.reset();
 		Thread.sleep(1500);	//reset delay
-//		getRateDataFromSensor();
-//		getDataFromSensor();
-//		Thread.sleep(4000);
+		getRateDataFromSensor();
+		getDataFromSensor();
+		Thread.sleep(4000);
 		//End gyro reset procedure
 		
 		Rac3TruckSteering.reset();

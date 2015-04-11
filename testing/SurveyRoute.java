@@ -304,11 +304,12 @@ public class SurveyRoute
 		Button.LEDPattern(2);	//solid red
 		try {
 			//Begin gyro reset procedure
+			Thread.sleep(750);	//allow user enough time to let go of robot
 			sensor.reset();
 			Thread.sleep(1500);	//reset delay
-//			getRateDataFromSensor();
-//			getDataFromSensor();
-//			Thread.sleep(4000);
+			getRateDataFromSensor();
+			getDataFromSensor();
+			Thread.sleep(4000);
 			//End gyro reset procedure
 		} catch (Exception e) {e.printStackTrace();}
 		Button.LEDPattern(1);	//solid green
