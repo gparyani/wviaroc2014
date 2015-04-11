@@ -20,6 +20,7 @@ import java.util.*;
 public class SurveyRoute
 {
 	//Begin variable declarations
+	private static ArduinoSideSensors sensorSet;	//maintain constant reference to object to prevent it from being GC'd
 	private static SideSensor leftSensor;	//initialized in static block
 	private static SideSensor frontSensor = new EV3IRSideSensor(SensorPort.S4);
 //	private static SideSensor rightSensor = new NXTUltrasonicSideSensor(SensorPort.S3);
@@ -46,7 +47,7 @@ public class SurveyRoute
 	
 	static
 	{
-		ArduinoSideSensors sensorSet = new ArduinoSideSensors(SensorPort.S2, 4);
+		sensorSet = new ArduinoSideSensors(SensorPort.S2, 4);
 		leftSensor = sensorSet.getLeftSideSensor();
 		rightSensor = sensorSet.getRightSideSensor();
 	}
