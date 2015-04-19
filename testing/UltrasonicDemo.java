@@ -1,5 +1,6 @@
 package testing;
 
+import lejos.hardware.Button;
 import lejos.hardware.Sound;
 import lejos.hardware.port.SensorPort;
 import testing.sensors.ArduinoSideSensors;
@@ -13,8 +14,15 @@ public class UltrasonicDemo {
 		SideSensor leftSensor = sensorSet.getLeftSideSensor();
 		SideSensor rightSensor = sensorSet.getRightSideSensor();
 		SideSensor frontSensor = new EV3IRSideSensor(SensorPort.S4);
-		Sound.setVolume(30);
+		Sound.setVolume(100);
 		int[] PIANO = {4, 25, 500, 7000, 5};
+		new Thread(new Runnable(){
+			public void run()
+			{
+				Button.waitForAnyPress();
+				System.exit(0);
+			}
+		}).start();
 		while(true)
 		{
 			Sound.playNote(PIANO, (int)leftSensor.getDistanceInCM() * 3 + 300, (int)frontSensor.getDistanceInCM() * 6);
